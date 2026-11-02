@@ -4,7 +4,7 @@ import type { ChatLine, Session } from "../../../shared/types.ts";
 import { duration, folderName, money, startedLabel } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
 import { act, api, setState } from "../store.ts";
-import { ApprovalCard, openUrl, PrChip, QuestionCard } from "./Monitor.tsx";
+import { ApprovalCard, openUrl, PrChip, QuestionCard, RemoteButton } from "./Monitor.tsx";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 
 function useChat(pid: number): ChatLine[] {
@@ -102,6 +102,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
         <button type="button" className="btn btn-primary" onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`, {}, true)}>
           <CodeXml size={15} /> Open in VS Code
         </button>
+        <RemoteButton s={s} look="button" />
         {s.pr && (
           <button type="button" className="btn btn-ghost" onClick={() => openUrl(s.pr!.url)}>
             <GitPullRequest size={15} /> PR #{s.pr.number}

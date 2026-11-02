@@ -11,6 +11,7 @@ import { ghReady, prByNumber, prForBranch, refreshRepo } from "./github.ts";
 import { CLAUDE_PROJECTS_DIR, CLAUDE_SESSIONS_DIR, SUMMARIZER_CWD } from "./paths.ts";
 import { powerState } from "./power.ts";
 import { basename, isClaudeComm, processTable, type ProcRow } from "./proc.ts";
+import { bridgeIdOf, remoteUrl } from "./remote.ts";
 import { findStoryId, shortcutReady, story as storyFor } from "./shortcut.ts";
 import { defaultEffort, latestUsage, readPermission, readTap, statusLineState } from "./statusline.ts";
 import { maybeSummarize, storedSummary } from "./summaries.ts";
@@ -26,6 +27,7 @@ export interface SessionFile extends StatusFile {
   name: string | null;
   nameSource: string | null;
   tmux: string | null;
+  bridgeSessionId: string | null; // set while Remote Control is on
 }
 
 export async function readSessionFiles(): Promise<SessionFile[]> {
@@ -53,6 +55,7 @@ export async function readSessionFiles(): Promise<SessionFile[]> {
           updatedAt: typeof d.updatedAt === "number" ? d.updatedAt : null,
           statusUpdatedAt: typeof d.statusUpdatedAt === "number" ? d.statusUpdatedAt : null,
           tmux: typeof d.tmux === "string" ? d.tmux : null,
+          bridgeSessionId: bridgeIdOf(d.bridgeSessionId),
         };
         return file;
       } catch {
@@ -323,6 +326,7 @@ export class Monitor {
       vscodeLinked: windowFor(shellPid) !== null,
       transcriptPath: path,
       tmux: f.tmux,
+      remoteUrl: remoteUrl(f.bridgeSessionId),
     };
   }
 }

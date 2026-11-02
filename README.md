@@ -36,6 +36,7 @@ No more searching through terminal tabs.
 - 🔍 **It finds every session.** Start `claude` in any terminal, and it shows up a moment later.
 - 🚦 **Live status in plain words:** working, needs your approval, asked you a question, waiting for your reply, idle, inactive.
 - ✅ **Approve, reject and answer** from the dashboard or from the menu bar. You see the exact command first.
+- 📱 **Take a session to your phone.** Click **rc** on its tile, and the session shows up in the Claude app. It keeps running on your Mac.
 - 🗣️ **Plain-English summaries.** Each session says what it works on in one short sentence. Anyone on the team can read it.
 - 🔀 **Git and GitHub on every tile:** branch, changes, pull request, checks and review.
 - 📊 **Your Claude usage:** the 5-hour and weekly limits, with their reset times.
@@ -59,7 +60,7 @@ No more searching through terminal tabs.
       <p>Click the icon next to the clock. A panel opens with:</p>
       <ul>
         <li><b>Needs you:</b> each waiting session, with <b>Approve</b>, <b>Reject</b> or its answer buttons.</li>
-        <li><b>Sessions:</b> everything that runs, newest first, with its PR.</li>
+        <li><b>Sessions:</b> everything that runs, newest first, with its PR. A green phone means the session is on your phone too.</li>
         <li><b>Claude usage:</b> your 5-hour and weekly limits.</li>
         <li><b>Quick switches:</b> notifications, sounds and keep awake.</li>
       </ul>
@@ -76,7 +77,7 @@ No more searching through terminal tabs.
 The overview on top counts your sessions, lists what needs you, and shows your pull requests and usage.
 Below it, each session is a tile, like a monitor on a wall. Every tile has three parts:
 
-- **Top:** the title, the task in plain English, and chips for the PR, the story and the branch.
+- **Top:** the title, the **rc** button, the task in plain English, and chips for the PR, the story and the branch.
 - **Middle:** the status, big and clear, with buttons when the session needs you.
 - **Bottom:** model · effort · repository, and a ring that shows how full the context window is.
 
@@ -87,6 +88,16 @@ Below it, each session is a tile, like a monitor on a wall. Every tile has three
 An approval shows the exact command. A question shows its options as buttons.
 One click sends your answer to the right terminal.
 Right before it presses a key, Control Room checks the session again, so an old card can never approve the wrong thing.
+
+### Take it with you
+
+Leaving your desk? Click **rc** on a session's tile, or **Remote control** in its details.
+Control Room types Claude Code's `/remote-control` into that session, the same command you would type yourself.
+A second later, the session is in the Claude app on your phone, under **Code**, and at [claude.ai/code](https://claude.ai/code).
+It keeps running on your Mac, so you can reply from your phone or from the terminal.
+
+A green **rc** means the session is on your phone. Click it to open the session at claude.ai.
+It works while Claude is busy too. Only a session that is asking you something must get its answer first.
 
 ### Plain English, for everyone
 
@@ -147,6 +158,7 @@ It deletes folders only. Your branches stay, on GitHub and on your Mac.
 - [Claude Code](https://github.com/anthropics/claude-code) (the `claude` command).
 - Optional: the [GitHub CLI](https://cli.github.com) `gh`, signed in, for pull request status.
 - Optional: [VS Code](https://code.visualstudio.com), to jump to a session's terminal and to answer from the dashboard.
+- Optional: for **rc**, the Claude app on your phone, and Claude Code signed in with a claude.ai plan. See [Remote Control](https://code.claude.com/docs/en/remote-control).
 
 **Build and install (about 3 minutes):**
 
@@ -217,6 +229,7 @@ open "/Applications/Control Room.app"
 | Open the dashboard | Click **Open dashboard** in the panel, or press ⌘ Space and type "Control Room". |
 | Put the wall on another screen | Click **Wall on…** in the panel, or **Wall on display** in the dashboard. |
 | Watch one session on its own | Click the pop-out button on its tile. |
+| Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
 | Move the icon | Hold ⌘ and drag the icon along the menu bar. |
 | Quit | Right-click the icon and choose **Quit**. |
 
@@ -250,7 +263,7 @@ There is no database and no cloud service. About once a second, the app reads:
 
 | Source | What it gives |
 |---|---|
-| `~/.claude/sessions/<pid>.json` (written by Claude Code) | which sessions are alive, their status, and why one waits |
+| `~/.claude/sessions/<pid>.json` (written by Claude Code) | which sessions are alive, their status, why one waits, and whether Remote Control is on |
 | the process table | that each session is still a running `claude` process, and its terminal |
 | the transcript `~/.claude/projects/…/<session>.jsonl` | the conversation, the current tool call, the title, PR links. It reads only the new bytes each time. |
 | the status line tap | model, effort, context size, cost and usage limits |
@@ -262,6 +275,10 @@ There is no database and no cloud service. About once a second, the app reads:
 The one-line summaries come from one short call to Claude Haiku, through your own `claude` command.
 Each call costs about 0.03¢, and it runs only when a session has moved on.
 
+**rc** types into the session's terminal, the same way Approve does: through `tmux`, or through the VS Code helper.
+First it clears anything you typed there but did not send. Press `Ctrl+Y` in that session to get it back.
+Then it types `/remote-control` and presses Enter.
+
 </details>
 
 <details>
@@ -271,9 +288,10 @@ Each call costs about 0.03¢, and it runs only when a session has moved on.
 
 - The app's server listens on `127.0.0.1` only. Other computers cannot reach it.
 - It checks the `Host` and `Origin` of every request. Every action also needs a header that a web page from another site cannot send.
-- Approve and Reject read the session's status again right before they press a key.
+- Approve, Reject and **rc** read the session's status again right before they press a key. **rc** never types into a session that is asking you something.
 - Shortcut tokens stay in `~/.claude-control-room/config.json`. The page only ever sees their last four characters.
 - The only calls that leave your Mac are: GitHub, through your own `gh`; Shortcut, only if you add a token; and your own `claude` command, for your account status and the short summaries.
+- After **rc**, Claude Code itself shares that session with your claude.ai account, as `/remote-control` always does. Control Room sends nothing there.
 - The app keeps its own settings and caches in `~/.claude-control-room/`. The only change it makes to Claude Code is the status line and hook in `~/.claude/settings.json`. You add them with **Connect** and remove them with **Disconnect**.
 
 </details>
@@ -288,6 +306,11 @@ On a MacBook with a notch, macOS hides icons that do not fit. Hold ⌘ and drag 
 
 **Approve and Reject are grey.**
 The dashboard needs a way to type into the session's terminal. Install the VS Code helper, or run the session inside `tmux`. Until then, use **Open in VS Code**.
+
+**rc does not work.**
+- *Can't type in this terminal:* rc needs the VS Code helper, or a session that runs in `tmux`. In other terminals, type `/rc` yourself.
+- *Did not connect:* look at the session. The first time, Claude Code asks you there to confirm Remote Control.
+  It also needs a claude.ai login, not an API key. On Team and Enterprise plans, an admin must turn Remote Control on first.
 
 **An approval card shows no command.**
 That session started before you connected Claude Code. Sessions you start after connecting show everything.

@@ -10,10 +10,12 @@ import {
   GitPullRequestDraft,
   LoaderCircle,
   PictureInPicture2,
+  Smartphone,
   SquareKanban,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
+import type { MouseEvent } from "react";
 import type { PullRequest, Session } from "../../../shared/types.ts";
 import { duration } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
@@ -180,6 +182,46 @@ export function QuestionCard({ s }: { s: Session }) {
   );
 }
 
+/** Sends the session to the Claude app with /remote-control; once it is there, opens it at claude.ai. */
+export function RemoteButton({ s, look = "pill" }: { s: Session; look?: "pill" | "button" | "icon" }) {
+  const sending = useStore((st) => st.busy[`${s.pid}:remote`]);
+  const on = s.remoteUrl !== null;
+  const asking = !on && (s.activity.kind === "approval" || s.activity.kind === "question");
+  const tip = on
+    ? "On your phone: it is in the Claude app under Code. Click to open it at claude.ai"
+    : asking
+      ? "Answer the session first, then send it to your phone"
+      : "Remote control: continue this session on your phone";
+  const click = (e: MouseEvent) => {
+    e.stopPropagation();
+    if (s.remoteUrl) openUrl(s.remoteUrl);
+    else void act(`${s.pid}:remote`, `/api/sessions/${s.pid}/remote`);
+  };
+  const size = look === "pill" ? 13 : look === "icon" ? 14 : 15;
+  const icon = sending ? <LoaderCircle size={size} className="spin-fast" /> : <Smartphone size={size} />;
+  const props = { type: "button" as const, "data-tip": tip, "aria-label": on ? "Open on claude.ai" : "Remote control", disabled: sending || asking, onClick: click };
+  if (look === "icon") {
+    return (
+      <button {...props} className={`mb-icon ${on ? "is-shown is-on" : ""}`}>
+        {icon}
+      </button>
+    );
+  }
+  if (look === "button") {
+    return (
+      <button {...props} className={`btn btn-ghost ${on ? "btn-rc-on" : ""}`}>
+        {icon} {on ? "On your phone" : "Remote control"}
+      </button>
+    );
+  }
+  return (
+    <button {...props} className={`rc-btn ${on ? "is-on" : ""}`} data-tip-side="bottom">
+      {icon}
+      <span>rc</span>
+    </button>
+  );
+}
+
 /** The plain-English task under the title; when the title already is the headline, the latest state. */
 export function taskLine(s: Session): string {
   return s.nameSource === "summary" ? (s.summary.now ?? "") : s.summary.headline;
@@ -220,6 +262,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
             <PictureInPicture2 size={15} />
           </IconButton>
         </div>
+        <RemoteButton s={s} />
         <IconButton label="Close session…" tone="danger" onClick={() => setState({ closing: s.pid })}>
           <X size={15} />
         </IconButton>

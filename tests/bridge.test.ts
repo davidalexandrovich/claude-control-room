@@ -69,6 +69,11 @@ describe("VS Code helper", () => {
     expect(calls).toContain('send:"\\r":false');
   });
 
+  it("passes control keys through unchanged, which is how rc clears a draft", async () => {
+    expect((await vscode.sendText(4242, "\u0015")).ok).toBe(true);
+    expect(calls).toContain('send:"\\u0015":false');
+  });
+
   it("closes the terminal and refuses a terminal it does not own", async () => {
     expect((await vscode.closeTerminal(4242)).ok).toBe(true);
     expect(calls).toContain("dispose");

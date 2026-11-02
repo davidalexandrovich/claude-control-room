@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deriveActivity, endsWithQuestion, type StatusFile } from "../server/activity.ts";
 import { parseRemote, parseShortstat } from "../server/git.ts";
 import { etimeSeconds, loginAgeFrom } from "../server/proc.ts";
+import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
 import { summarizeChecks } from "../server/github.ts";
 import { findStoryId } from "../server/shortcut.ts";
 import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../server/statusline.ts";
@@ -240,5 +241,27 @@ describe("start at login", () => {
     expect(loginAgeFrom(ps)).toBe(7800);
     expect(loginAgeFrom("   00:40 /System/Library/CoreServices/Finder.app/Contents/MacOS/Finder")).toBe(40);
     expect(loginAgeFrom("   00:40 /usr/bin/ssh-agent")).toBeNull();
+  });
+});
+
+describe("remote control", () => {
+  it("reads the id Claude Code keeps while Remote Control is on, and links to it", () => {
+    expect(bridgeIdOf("session_01AbCdEfGhJkMnPqRsTuVw")).toBe("session_01AbCdEfGhJkMnPqRsTuVw");
+    expect(remoteUrl(bridgeIdOf("session_01AbCdEfGhJkMnPqRsTuVw"))).toBe("https://claude.ai/code/session_01AbCdEfGhJkMnPqRsTuVw");
+    for (const raw of [undefined, null, 42, "", "cse_013by", "session_../x", "https://evil.example/session_1"]) expect(bridgeIdOf(raw)).toBeNull();
+    expect(remoteUrl(null)).toBeNull();
+  });
+
+  it("never types into a session that is asking you something", () => {
+    expect(remoteRefusal({ status: "waiting" })).toMatch(/Answer the session first/);
+    expect(remoteRefusal(null)).toMatch(/gone/);
+    for (const status of ["idle", "busy", "shell", null]) expect(remoteRefusal({ status })).toBeNull();
+  });
+
+  it("clears a draft with line keys only, then types the command with a space", () => {
+    // Ctrl+C would stop a busy turn and Esc Esc would open the rewind menu, so neither may be sent.
+    expect(CLEAR_DRAFT.map(([text]) => text).join("")).toMatch(/^\u0005\u0015+$/);
+    expect(CLEAR_DRAFT.map(([, key]) => key)).toEqual(["C-e", "C-u", "C-u", "C-u", "C-u", "C-u", "C-u"]);
+    expect(REMOTE_COMMAND).toBe("/remote-control ");
   });
 });

@@ -5,6 +5,7 @@ import { prForBranch, type PrRow } from "./github.ts";
 import type { Monitor } from "./monitor.ts";
 import { readSessionFiles } from "./monitor.ts";
 import { launch, run, sleep } from "./proc.ts";
+import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
 import { closeTerminal, focusTerminal, sendText } from "./vscode.ts";
 import { buildReport, insidePath } from "./worktrees.ts";
 
@@ -14,9 +15,9 @@ function find(monitor: Monitor, pid: number): Session | null {
   return monitor.snapshot?.sessions.find((s) => s.pid === pid) ?? null;
 }
 
-async function freshStatus(pid: number): Promise<{ status: string | null; waitingFor: string | null } | null> {
+async function freshStatus(pid: number): Promise<{ status: string | null; waitingFor: string | null; bridgeSessionId: string | null } | null> {
   const f = (await readSessionFiles()).find((x) => x.pid === pid);
-  return f ? { status: f.status, waitingFor: f.waitingFor } : null;
+  return f ? { status: f.status, waitingFor: f.waitingFor, bridgeSessionId: f.bridgeSessionId } : null;
 }
 
 /** Sends raw keys to the terminal that runs the session: tmux directly, VS Code through the helper. */
@@ -75,6 +76,38 @@ export async function answerQuestion(monitor: Monitor, pid: number, option: numb
   await settle(pid, "waiting");
   await monitor.tick();
   return { ok: true, message: `Answered “${q.options[option].label}”` };
+}
+
+/** Types /remote-control into the session, as you would by hand. Claude Code runs it at once, even mid-turn. */
+export async function startRemoteControl(monitor: Monitor, pid: number): Promise<ActionResult> {
+  const s = find(monitor, pid);
+  if (!s) return { ok: false, message: "That session is gone." };
+  if (!s.tmux && !s.vscodeLinked) {
+    return { ok: false, message: "Control Room can't type in this terminal. Type /rc in the session, or install the VS Code helper (Settings)." };
+  }
+  const before = await freshStatus(pid);
+  // A second /remote-control would open Claude Code's Remote Control menu in the terminal.
+  if (before?.bridgeSessionId) return { ok: true, message: "It is already on your phone." };
+  const refused = remoteRefusal(before);
+  if (refused) return { ok: false, message: refused };
+  for (const [text, key] of [...CLEAR_DRAFT, [REMOTE_COMMAND, null] as const]) {
+    const r = await sendKeys(s, text, key);
+    if (!r.ok) return r;
+  }
+  await sleep(300);
+  // Look again right before Enter: a prompt that opened meanwhile would take Enter as "yes".
+  const late = remoteRefusal(await freshStatus(pid));
+  if (late) return { ok: false, message: late };
+  const r = await sendKeys(s, KEYS.enter, "Enter");
+  if (!r.ok) return r;
+  for (let i = 0; i < 24; i++) {
+    await sleep(250);
+    if ((await freshStatus(pid))?.bridgeSessionId) {
+      await monitor.tick();
+      return { ok: true, message: "On your phone now: open the Claude app and tap Code." };
+    }
+  }
+  return { ok: false, message: "Sent /remote-control, but it did not connect. Look at the session to see why." };
 }
 
 export async function focusSession(monitor: Monitor, pid: number): Promise<ActionResult> {

@@ -337,6 +337,11 @@ p {
 .btn-ghost:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.075);
 }
+.btn-ghost.btn-rc-on {
+  background: rgba(91, 227, 154, 0.1);
+  border-color: rgba(91, 227, 154, 0.32);
+  color: var(--good);
+}
 .btn-danger {
   background: linear-gradient(180deg, #ff7b7b, #f25555);
   color: #1d0505;
@@ -424,6 +429,9 @@ p {
 }
 .spin-slow {
   animation: spin 2.4s linear infinite;
+}
+.spin-fast {
+  animation: spin 0.8s linear infinite;
 }
 .kbd {
   display: inline-grid;
@@ -1266,6 +1274,50 @@ p {
   width: 28px;
   height: 28px;
   color: var(--text-3);
+}
+/* rc: Remote Control, green while the session is in the Claude app too */
+.rc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 24px;
+  padding: 0 8px 0 7px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-3);
+  font: 650 11px var(--mono);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.rc-btn:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: var(--line-2);
+  color: var(--text);
+}
+.rc-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.rc-btn.is-on {
+  background: rgba(91, 227, 154, 0.1);
+  border-color: rgba(91, 227, 154, 0.32);
+  color: var(--good);
+}
+.rc-btn.is-on:hover {
+  background: rgba(91, 227, 154, 0.17);
+  border-color: rgba(91, 227, 154, 0.5);
+  color: var(--good);
+}
+/* The button sits at the tile's right edge, so its tooltip opens to the left. */
+.rc-btn[data-tip]:hover::after {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .mon-task {
   grid-area: task;
@@ -2489,6 +2541,14 @@ html.is-menubar body::before {
 .mb-icon:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text);
+}
+.mb-icon.is-on,
+.mb-icon.is-on:hover {
+  color: var(--good);
+}
+.mb-row:hover .mb-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* a session that needs you */

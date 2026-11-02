@@ -7,6 +7,7 @@ import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
 import { sudoersLine } from "./power.ts";
+import { remoteRefusal } from "./remote.ts";
 
 export interface DemoRunning {
   port: number;
@@ -64,6 +65,14 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         snap = { ...snap, sessions: snap.sessions.filter((x) => x.pid !== pid) };
         publish();
         return { ok: true, message: `Closed “${s.name}”` };
+      case "remote": {
+        if (s.remoteUrl) return { ok: true, message: "It is already on your phone." };
+        const asking = s.activity.kind === "approval" || s.activity.kind === "question";
+        const refused = remoteRefusal({ status: asking ? "waiting" : null });
+        if (refused) return { ok: false, message: refused };
+        update(pid, () => ({ remoteUrl: `https://claude.ai/code/session_demo${pid}` }));
+        return { ok: true, message: "On your phone now: open the Claude app and tap Code." };
+      }
     }
     return null;
   }
@@ -97,7 +106,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote)$/.exec(p);
     if (m) {
       const out = await sessionAction(Number(m[1]), m[2], req);
       return send(res, out ? 200 : 404, out ?? { ok: false, message: "Unknown action" });

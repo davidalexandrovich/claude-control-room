@@ -15,6 +15,7 @@ import {
   openUrl,
   pruneWorktrees,
   removeWorktrees,
+  startRemoteControl,
 } from "./actions.ts";
 import { repoClaims } from "./claims.ts";
 import { loadSettings, saveSettings, settings } from "./config.ts";
@@ -72,6 +73,8 @@ export async function startServer(opts: { port?: number; dev?: boolean } = {}): 
         return focusSession(monitor, pid);
       case "close":
         return closeSession(monitor, pid, await body<CloseRequest>(req));
+      case "remote":
+        return startRemoteControl(monitor, pid);
     }
     return null;
   };
@@ -124,7 +127,7 @@ export async function startServer(opts: { port?: number; dev?: boolean } = {}): 
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote)$/.exec(p);
     if (m) {
       const out = await sessionAction(Number(m[1]), m[2], req);
       return send(res, out ? 200 : 404, out ?? { ok: false, message: "Unknown action" });

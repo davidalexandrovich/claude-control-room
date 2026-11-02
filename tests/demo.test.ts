@@ -39,7 +39,8 @@ describe("demo server", () => {
   const snapshot = async () => (await (await fetch(`${demo.url}api/snapshot`)).json()) as Snapshot;
 
   beforeAll(async () => {
-    demo = await startDemo({ port: 0 });
+    // Every sample session, so one is still asking after the first test has answered some.
+    demo = await startDemo({ port: 0, sessions: DEMO_MAX_COUNT });
   });
   afterAll(() => demo.stop());
 
@@ -53,6 +54,19 @@ describe("demo server", () => {
     const question = after.sessions.find((s) => s.activity.kind === "question")!;
     const answer = await (await post(`/api/sessions/${question.pid}/answer`, { option: 0 })).json();
     expect(answer.message).toContain(question.activity.question!.options[0].label);
+  });
+
+  it("sends a session to the phone, but not while it asks you something", async () => {
+    const before = await snapshot();
+    const idle = before.sessions.find((s) => s.activity.kind === "idle" && !s.remoteUrl)!;
+    expect((await (await post(`/api/sessions/${idle.pid}/remote`)).json()).ok).toBe(true);
+    expect((await snapshot()).sessions.find((s) => s.pid === idle.pid)?.remoteUrl).toMatch(/^https:\/\/claude\.ai\/code\//);
+    expect((await (await post(`/api/sessions/${idle.pid}/remote`)).json()).message).toMatch(/already/);
+
+    const asking = before.sessions.find((s) => s.activity.kind === "approval" || s.activity.kind === "question")!;
+    const refused = await (await post(`/api/sessions/${asking.pid}/remote`)).json();
+    expect(refused.ok).toBe(false);
+    expect((await snapshot()).sessions.find((s) => s.pid === asking.pid)?.remoteUrl).toBeNull();
   });
 
   it("keeps the live server's guards", async () => {

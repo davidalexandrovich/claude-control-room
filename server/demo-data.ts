@@ -28,6 +28,7 @@ interface Seed {
   pr?: Pick<PullRequest, "number" | "title" | "state" | "isDraft" | "review" | "checks"> & { checked?: [number, number, number] };
   story?: Pick<Story, "id" | "name" | "state">;
   claim?: string[]; // paths the session claimed in the repo's worktree registry
+  remote?: boolean; // on Remote Control, so it is in the Claude app too
   model: string;
   effort: string;
   context: number;
@@ -120,6 +121,7 @@ const SEEDS: Seed[] = [
     pr: { number: 312, title: "Rate limit the public API", state: "OPEN", isDraft: false, review: "REVIEW_REQUIRED", checks: "pending", checked: [3, 0, 2] },
     story: { id: 2502, name: "Limit requests on public endpoints", state: "In Progress" },
     claim: ["src/middleware/", "tests/rateLimit.test.ts"],
+    remote: true,
     model: "claude-opus-5-5",
     effort: "xhigh",
     context: 61,
@@ -411,6 +413,7 @@ function sessionOf(s: Seed, now: number): Session {
     vscodeLinked: true,
     transcriptPath: null,
     tmux: null,
+    remoteUrl: s.remote ? `https://claude.ai/code/session_demo${s.pid}` : null,
   };
 }
 

@@ -124,6 +124,7 @@ export interface Session {
   vscodeLinked: boolean; // the VS Code helper can reach this terminal
   transcriptPath: string | null;
   tmux: string | null;
+  remoteUrl: string | null; // claude.ai link while Remote Control is on
 }
 
 export interface RateWindow {

@@ -5,7 +5,7 @@ import { playChime } from "../lib/alerts.ts";
 import { duration, plural } from "../lib/format.ts";
 import { native, openWallWindow } from "../lib/native.ts";
 import { act, api, needsYou, useStore } from "../store.ts";
-import { ApprovalCard, lastWords, openUrl, PrChip, QuestionCard, taskLine } from "./Monitor.tsx";
+import { ApprovalCard, lastWords, openUrl, PrChip, QuestionCard, RemoteButton, taskLine } from "./Monitor.tsx";
 import { GROUPS } from "./Overview.tsx";
 import { Meter, Spinner, StatusOrb, useNow } from "./Primitives.tsx";
 import { Toasts } from "./Toasts.tsx";
@@ -103,6 +103,7 @@ function Row({ s }: { s: Session }) {
       <span className="mb-task">{taskLine(s) || s.repoName}</span>
       <span className="mb-tools">
         {s.pr && <PrChip pr={s.pr} />}
+        <RemoteButton s={s} look="icon" />
         <button
           type="button"
           className="mb-icon"
