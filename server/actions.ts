@@ -1,7 +1,9 @@
 import type { ActionResult, ClosePlan, CloseRequest, Session, WorktreeReport } from "../shared/types.ts";
 import { endClaim, forgetClaims, repoClaims } from "./claims.ts";
+import { settings } from "./config.ts";
 import { git, listWorktrees } from "./git.ts";
 import { prForBranch, type PrRow } from "./github.ts";
+import { openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { readSessionFiles } from "./monitor.ts";
 import { cleanName } from "./names.ts";
@@ -29,7 +31,7 @@ async function sendKeys(s: Session, text: string, tmuxKey: string | null): Promi
     const out = await run("tmux", args, { timeoutMs: 5_000 });
     return { ok: out.ok, message: out.ok ? "Sent" : out.stderr.trim() };
   }
-  if (s.where === "vscode") {
+  if (s.vscodeLinked) {
     const r = await sendText(s.shellPid, text);
     return { ok: r.ok, message: r.message };
   }
@@ -84,7 +86,8 @@ export async function startRemoteControl(monitor: Monitor, pid: number): Promise
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
   if (!s.tmux && !s.vscodeLinked) {
-    return { ok: false, message: "Control Room can't type in this terminal. Type /rc in the session, or install the VS Code helper (Settings)." };
+    const helper = s.ide === "vscode" ? ", or install the VS Code helper (Settings)" : "";
+    return { ok: false, message: `Control Room can't type in this terminal. Type /rc in the session${helper}.` };
   }
   const before = await freshStatus(pid);
   // A second /remote-control would open Claude Code's Remote Control menu in the terminal.
@@ -118,8 +121,13 @@ export async function focusSession(monitor: Monitor, pid: number): Promise<Actio
     launch("open", ["-a", "Terminal"]);
     return { ok: true, message: `It runs in tmux (${s.tmux.split(":")[0]}).` };
   }
-  const r = await focusTerminal(s.shellPid);
-  return { ok: r.ok, message: r.ok ? "Opened in VS Code" : r.message };
+  const ide = settings().ide;
+  // Only the VS Code helper knows which terminal runs the session; any other IDE opens the session's folder.
+  if (ide === "vscode" && s.vscodeLinked) {
+    const r = await focusTerminal(s.shellPid);
+    return { ok: r.ok, message: r.ok ? "Opened in VS Code" : r.message };
+  }
+  return openInIde(ide, s.git?.root ?? s.cwd);
 }
 
 /** Renames the session's VS Code tab. The tile takes the tab's name, so both show the new name. */
@@ -216,7 +224,7 @@ export async function closeSession(monitor: Monitor, pid: number, req: CloseRequ
   const stopped = await stopProcess(pid);
   log.push(stopped ? "Stopped Claude." : "Claude did not stop.");
   if (!stopped) return { ok: false, message: "Claude did not stop, so nothing else was changed.", log };
-  if (s.where === "vscode") {
+  if (s.vscodeLinked) {
     const closed = await closeTerminal(s.shellPid);
     log.push(closed.ok ? "Closed its VS Code terminal." : closed.message);
   }

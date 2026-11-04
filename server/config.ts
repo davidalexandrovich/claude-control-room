@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiSummaries: true,
   inactiveAfterMinutes: 120,
   includeIdePanel: false,
+  ide: "vscode",
   layout: "fit",
   shortcutTokens: [],
 };

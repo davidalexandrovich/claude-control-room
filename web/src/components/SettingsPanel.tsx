@@ -1,10 +1,11 @@
 import { Copy, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { IDES } from "../../../shared/ides.ts";
 import type { Snapshot } from "../../../shared/types.ts";
 import { playChime } from "../lib/alerts.ts";
 import { native } from "../lib/native.ts";
-import { act, api, setState, toast, useStore } from "../store.ts";
+import { act, api, setState, toast, useIdeName, useStore } from "../store.ts";
 import { Toggle } from "./Primitives.tsx";
 
 function Line(props: { title: string; text: React.ReactNode; children: React.ReactNode }) {
@@ -25,6 +26,7 @@ function State({ ok, text }: { ok: boolean; text: string }) {
 
 export function SettingsPanel({ snap }: { snap: Snapshot }) {
   const busy = useStore((s) => s.busy);
+  const ide = useIdeName();
   const [token, setToken] = useState("");
   const [sudoers, setSudoers] = useState<string | null>(null);
   const [atLogin, setAtLogin] = useState<boolean | null>(null);
@@ -84,6 +86,15 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
               {[30, 60, 120, 240, 480, 1440].map((m) => (
                 <option key={m} value={m}>
                   {m < 60 ? `${m} min` : m === 1440 ? "1 day" : `${m / 60} h`}
+                </option>
+              ))}
+            </select>
+          </Line>
+          <Line title="Open sessions in" text="VS Code with its helper jumps to the session's terminal. Other IDEs open the session's folder.">
+            <select className="select" value={cfg.ide} onChange={(e) => save({ ide: e.target.value })}>
+              {IDES.filter((i) => i.id === cfg.ide || setup.ides.includes(i.id)).map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name}
                 </option>
               ))}
             </select>
@@ -209,7 +220,7 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
           <h4 className="set-section">Keyboard</h4>
           <div className="keys">
             <span><kbd className="kbd">1</kbd>–<kbd className="kbd">9</kbd> select a session</span>
-            <span><kbd className="kbd">↵</kbd> open it in VS Code</span>
+            <span><kbd className="kbd">↵</kbd> open it in {ide}</span>
             <span><kbd className="kbd">Space</kbd> details</span>
             <span><kbd className="kbd">A</kbd> approve · <kbd className="kbd">R</kbd> reject</span>
             <span><kbd className="kbd">P</kbd> open its PR</span>

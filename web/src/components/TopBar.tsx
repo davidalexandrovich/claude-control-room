@@ -99,7 +99,7 @@ export function SetupBanner({ snap }: { snap: Snapshot }) {
   const busy = useStore((s) => s.busy);
   const [hidden, setHidden] = useState(() => sessionStorage.getItem("cr.setupHidden") === "1");
   const needStatus = snap.setup.statusLine !== "installed" || !snap.setup.hooks;
-  const needVscode = snap.setup.vscodeHelper === "missing" && snap.sessions.some((s) => s.where === "vscode");
+  const needVscode = snap.setup.vscodeHelper === "missing" && snap.sessions.some((s) => s.ide === "vscode");
   if (hidden || VIEW.wallOnly || (!needStatus && !needVscode)) return null;
   return (
     <div className="setup-banner">

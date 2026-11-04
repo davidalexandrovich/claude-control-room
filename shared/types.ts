@@ -1,4 +1,5 @@
 // Types shared by the server and the web UI. The server produces every value; the UI only reads.
+import type { IdeId } from "./ides.ts";
 
 export type StatusKind =
   | "working" // Claude is running a turn
@@ -120,7 +121,8 @@ export interface Session {
   contextPercent: number | null;
   costUsd: number | null;
   repoName: string; // e.g. "storefront"
-  where: "vscode" | "tmux" | "terminal" | "other";
+  where: "ide" | "tmux" | "terminal" | "other";
+  ide: IdeId | null; // the IDE whose terminal runs the session
   vscodeLinked: boolean; // the VS Code helper can reach this terminal
   transcriptPath: string | null;
   tmux: string | null;
@@ -155,6 +157,7 @@ export interface SetupState {
   hooks: boolean; // the permission hook that tells what an approval prompt asks
   vscodeHelper: "connected" | "outdated" | "installed" | "missing"; // outdated = connected, but too old to rename tabs
   vscodeWindows: number;
+  ides: IdeId[]; // installed on this Mac
   ghReady: boolean;
   shortcutReady: boolean;
 }
@@ -165,6 +168,7 @@ export interface Settings {
   aiSummaries: boolean;
   inactiveAfterMinutes: number;
   includeIdePanel: boolean;
+  ide: IdeId; // where "Open in …" opens a session
   layout: "fit" | "comfortable" | "focus";
   shortcutTokens: string[]; // masked when sent to the UI
 }

@@ -3,6 +3,7 @@ import { mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isIdeId } from "../shared/ides.ts";
 import type { ActionResult, CloseRequest, Settings } from "../shared/types.ts";
 import { currentAccount, readAccount, startAccountSwitch } from "./account.ts";
 import {
@@ -151,6 +152,7 @@ export async function startServer(opts: { port?: number; dev?: boolean } = {}): 
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;
         if (b.layout === "fit" || b.layout === "comfortable" || b.layout === "focus") patch.layout = b.layout;
+        if (isIdeId(b.ide)) patch.ide = b.ide;
         let message = "Saved";
         if (b.addShortcutToken) {
           const token = b.addShortcutToken.trim();

@@ -8,6 +8,7 @@ import { claimsOf, repoClaims } from "./claims.ts";
 import { publicSettings, settings } from "./config.ts";
 import { gitInfo } from "./git.ts";
 import { ghReady, prByNumber, prForBranch, refreshRepo } from "./github.ts";
+import { ideOf, installedIdes } from "./ide.ts";
 import { CLAUDE_PROJECTS_DIR, CLAUDE_SESSIONS_DIR, SUMMARIZER_CWD } from "./paths.ts";
 import { powerState } from "./power.ts";
 import { basename, isClaudeComm, processTable, type ProcRow } from "./proc.ts";
@@ -97,16 +98,17 @@ async function findTranscript(sessionId: string, cwd: string): Promise<string | 
   return found;
 }
 
-function hostOf(pid: number, procs: Map<number, ProcRow>): Session["where"] {
+function hostOf(pid: number, procs: Map<number, ProcRow>): Pick<Session, "where" | "ide"> {
   let cur = procs.get(pid);
   for (let i = 0; i < 8 && cur; i++) {
     const comm = cur.comm;
-    if (/Code Helper|Visual Studio Code|Cursor Helper/.test(comm)) return "vscode";
-    if (/tmux/.test(basename(comm))) return "tmux";
-    if (/Terminal\.app|iTerm|Ghostty|WezTerm|kitty|Warp/i.test(comm)) return "terminal";
+    const ide = ideOf(comm);
+    if (ide) return { where: "ide", ide };
+    if (/tmux/.test(basename(comm))) return { where: "tmux", ide: null };
+    if (/Terminal\.app|iTerm|Ghostty|WezTerm|kitty|Warp/i.test(comm)) return { where: "terminal", ide: null };
     cur = procs.get(cur.ppid);
   }
-  return "other";
+  return { where: "other", ide: null };
 }
 
 function fallbackSummary(input: { story: string | null; note: string | null; title: string | null; firstPrompt: string | null }): Summary {
@@ -193,6 +195,7 @@ export class Monitor {
         hooks: connection.hooks,
         vscodeHelper: helperState(),
         vscodeWindows: windows,
+        ides: installedIdes(),
         ghReady: ghReady(),
         shortcutReady: shortcutReady(),
       },
@@ -297,6 +300,7 @@ export class Monitor {
 
     const chat: ChatLine[] = t ? t.chat.slice(-PREVIEW_LINES) : [];
     const effort = tap?.effort ?? ask?.effort ?? t?.effort ?? this.effortDefault;
+    const host: Pick<Session, "where" | "ide"> = f.tmux ? { where: "tmux", ide: null } : hostOf(f.pid, procs);
     return {
       pid: f.pid,
       shellPid,
@@ -322,7 +326,8 @@ export class Monitor {
       contextPercent: tap?.contextPercent ?? null,
       costUsd: tap?.costUsd ?? t?.costUsd ?? null,
       repoName: git ? basename(git.mainRoot) : basename(cwd),
-      where: f.tmux ? "tmux" : hostOf(f.pid, procs),
+      where: host.where,
+      ide: host.ide,
       vscodeLinked: windowFor(shellPid) !== null,
       transcriptPath: path,
       tmux: f.tmux,

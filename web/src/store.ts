@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { ideName } from "../../shared/ides.ts";
 import type { ActionResult, Session, Snapshot, StatusKind } from "../../shared/types.ts";
 
 export type Filter = "all" | "attention" | "working" | "idle" | "inactive";
@@ -79,6 +80,11 @@ export function useStore<T>(select: (s: State) => T): T {
     },
     () => select(state),
   );
+}
+
+/** The IDE "Open in …" uses, by name, e.g. "PyCharm". */
+export function useIdeName(): string {
+  return useStore((s) => ideName(s.snapshot?.settings.ide ?? "vscode"));
 }
 
 let toastId = 0;

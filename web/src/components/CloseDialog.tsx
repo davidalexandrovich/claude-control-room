@@ -85,7 +85,7 @@ export function CloseDialog({ s }: { s: Session }) {
           >
             <b>Close the session and release all claims</b>
             <span>
-              Stops Claude{s.where === "vscode" ? " and closes its VS Code terminal" : ""}.{" "}
+              Stops Claude{s.vscodeLinked ? " and closes its terminal tab" : ""}.{" "}
               {s.claims.length
                 ? `Releases ${plural(paths, "claimed path")}${leases.length ? ` and the ${leases.join(", ")} lease${leases.length === 1 ? "" : "s"}` : ""}.`
                 : "This session holds no claims."}

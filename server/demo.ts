@@ -3,6 +3,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
+import { ideName, isIdeId } from "../shared/ides.ts";
 import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "../shared/types.ts";
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
@@ -61,7 +62,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         return { ok: true, message: `Answered “${option.label}”` };
       }
       case "focus":
-        return { ok: true, message: "In the app, this opens the session's terminal in VS Code." };
+        return { ok: true, message: `In the app, this opens the session in ${ideName(snap.settings.ide)}.` };
       case "close":
         snap = { ...snap, sessions: snap.sessions.filter((x) => x.pid !== pid) };
         publish();
@@ -127,6 +128,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;
         if (b.layout === "fit" || b.layout === "comfortable" || b.layout === "focus") patch.layout = b.layout;
+        if (isIdeId(b.ide)) patch.ide = b.ide;
         snap = { ...snap, settings: { ...snap.settings, ...patch } };
         publish();
         return send(res, 200, { ok: true, message: "Saved" });
