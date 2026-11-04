@@ -3,7 +3,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
-import { ideName, isIdeId } from "../shared/ides.ts";
+import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "../shared/types.ts";
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
@@ -62,7 +62,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         return { ok: true, message: `Answered “${option.label}”` };
       }
       case "focus":
-        return { ok: true, message: `In the app, this opens the session in ${ideName(snap.settings.ide)}.` };
+        return { ok: true, message: `In the app, this opens the session in ${targetName(openTarget(s, snap.settings.ide))}.` };
       case "close":
         snap = { ...snap, sessions: snap.sessions.filter((x) => x.pid !== pid) };
         publish();

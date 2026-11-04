@@ -18,7 +18,5 @@ export const SUMMARIZER_CWD = join(APP_DIR, "summarizer");
 export const BACKUP_DIR = join(APP_DIR, "backups");
 export const BRIDGE_FILE = join(APP_DIR, "bridge.json");
 
-export const VSCODE_APP = "/Applications/Visual Studio Code.app";
-export const VSCODE_CLI = join(VSCODE_APP, "Contents/Resources/app/bin/code");
 export const VSCODE_EXTENSIONS_DIR = join(HOME, ".vscode", "extensions");
 export const VSCODE_HELPER_ID = "local.control-room-bridge";

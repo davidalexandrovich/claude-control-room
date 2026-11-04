@@ -4,7 +4,7 @@ import type { RateWindow, Session, Snapshot } from "../../../shared/types.ts";
 import { playChime } from "../lib/alerts.ts";
 import { duration, plural } from "../lib/format.ts";
 import { native, openWallWindow } from "../lib/native.ts";
-import { act, api, needsYou, useIdeName, useStore } from "../store.ts";
+import { act, api, needsYou, useOpenName, useStore } from "../store.ts";
 import { ApprovalCard, lastWords, openUrl, PrChip, QuestionCard, RemoteButton, taskLine } from "./Monitor.tsx";
 import { GROUPS } from "./Overview.tsx";
 import { Meter, Spinner, StatusOrb, useNow } from "./Primitives.tsx";
@@ -58,7 +58,7 @@ function Head({ sessions }: { sessions: Session[] }) {
 
 function AskCard({ s }: { s: Session }) {
   const now = useNow();
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   const a = s.activity;
   const words = a.kind === "idle" ? lastWords(s) : null;
   return (
@@ -78,7 +78,7 @@ function AskCard({ s }: { s: Session }) {
           {(words?.text ?? a.detail) && <div className="mb-ask-words">{words?.text ?? a.detail}</div>}
           <div className="ask-buttons">
             <button type="button" className="btn btn-approve btn-sm" onClick={() => focusSession(s)}>
-              Reply in {ide}
+              Reply in {openIn}
             </button>
           </div>
         </div>
@@ -93,7 +93,7 @@ function statusWord(s: Session): string {
 
 function Row({ s }: { s: Session }) {
   const now = useNow();
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   const a = s.activity;
   return (
     <div className={`mb-row st-${a.kind}`} role="button" tabIndex={0} onClick={() => openDashboard(s.pid)} onKeyDown={(e) => e.key === "Enter" && openDashboard(s.pid)}>
@@ -109,7 +109,7 @@ function Row({ s }: { s: Session }) {
         <button
           type="button"
           className="mb-icon"
-          aria-label={`Open in ${ide}`}
+          aria-label={`Open in ${openIn}`}
           onClick={(e) => {
             e.stopPropagation();
             focusSession(s);

@@ -1,3 +1,4 @@
+import { openTarget } from "../shared/ides.ts";
 import type { ActionResult, ClosePlan, CloseRequest, Session, WorktreeReport } from "../shared/types.ts";
 import { endClaim, forgetClaims, repoClaims } from "./claims.ts";
 import { settings } from "./config.ts";
@@ -117,17 +118,17 @@ export async function startRemoteControl(monitor: Monitor, pid: number): Promise
 export async function focusSession(monitor: Monitor, pid: number): Promise<ActionResult> {
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
-  if (s.tmux) {
+  const target = openTarget(s, settings().ide);
+  if (target.kind === "tmux") {
     launch("open", ["-a", "Terminal"]);
-    return { ok: true, message: `It runs in tmux (${s.tmux.split(":")[0]}).` };
+    return { ok: true, message: `It runs in tmux (${(s.tmux ?? "").split(":")[0]}).` };
   }
-  const ide = settings().ide;
-  // Only the VS Code helper knows which terminal runs the session; any other IDE opens the session's folder.
-  if (ide === "vscode" && s.vscodeLinked) {
+  // A VS Code session goes through the helper: it jumps to the session's terminal, or says how to get that jump.
+  if (s.ide === "vscode") {
     const r = await focusTerminal(s.shellPid);
     return { ok: r.ok, message: r.ok ? "Opened in VS Code" : r.message };
   }
-  return openInIde(ide, s.git?.root ?? s.cwd);
+  return openInIde(target.ide, s.git?.root ?? s.cwd, !!s.git);
 }
 
 /** Renames the session's VS Code tab. The tile takes the tab's name, so both show the new name. */
@@ -224,7 +225,8 @@ export async function closeSession(monitor: Monitor, pid: number, req: CloseRequ
   const stopped = await stopProcess(pid);
   log.push(stopped ? "Stopped Claude." : "Claude did not stop.");
   if (!stopped) return { ok: false, message: "Claude did not stop, so nothing else was changed.", log };
-  if (s.vscodeLinked) {
+  // closeTerminal checks the helper itself, so it also says when an unlinked tab stays open.
+  if (s.ide === "vscode" || s.vscodeLinked) {
     const closed = await closeTerminal(s.shellPid);
     log.push(closed.ok ? "Closed its VS Code terminal." : closed.message);
   }

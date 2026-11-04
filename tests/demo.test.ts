@@ -77,6 +77,14 @@ describe("demo server", () => {
     expect((await (await post(`/api/sessions/${s.pid}/rename`, { name: " " })).json()).ok).toBe(false);
   });
 
+  it("saves a known IDE for Open in, and ignores an unknown one", async () => {
+    expect((await post("/api/settings", { ide: "zed" })).status).toBe(200);
+    expect((await snapshot()).settings.ide).toBe("zed");
+    await post("/api/settings", { ide: "notepad" });
+    expect((await snapshot()).settings.ide).toBe("zed");
+    await post("/api/settings", { ide: "vscode" });
+  });
+
   it("keeps the live server's guards", async () => {
     expect((await post("/api/power", { on: false }, {})).status).toBe(403);
     expect((await fetch(`${demo.url}api/snapshot`, { headers: { Origin: "https://example.com" } })).status).toBe(403);

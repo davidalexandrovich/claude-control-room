@@ -1,6 +1,9 @@
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import { deriveActivity, endsWithQuestion, type StatusFile } from "../server/activity.ts";
+import { cleanSettings } from "../server/config.ts";
 import { parseRemote, parseShortstat } from "../server/git.ts";
+import { ideOf, openInIde } from "../server/ide.ts";
 import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { etimeSeconds, loginAgeFrom } from "../server/proc.ts";
 import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
@@ -10,6 +13,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { applyLines, describeTool, emptyState, modelName, userText } from "../server/transcript.ts";
 import { verdictFor, type WorktreeFacts } from "../server/worktrees.ts";
+import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { fitWall, TILE_MIN_H, TILE_MIN_W } from "../web/src/lib/layout.ts";
 
 const NOW = 1_800_000_000_000;
@@ -294,5 +298,40 @@ describe("session names", () => {
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
     expect(pickName({ tab: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
+  });
+});
+
+describe("Open in", () => {
+  it("tells the IDE from the process that hosts the terminal", () => {
+    const app = (path: string) => `/Applications/${path}`;
+    expect(ideOf(app("Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)"))).toBe("vscode");
+    expect(ideOf(app("Cursor.app/Contents/Frameworks/Cursor Helper (Plugin).app/Contents/MacOS/Cursor Helper (Plugin)"))).toBe("cursor");
+    expect(ideOf(app("PyCharm CE.app/Contents/MacOS/pycharm"))).toBe("pycharm");
+    expect(ideOf(app("IntelliJ IDEA.app/Contents/MacOS/idea"))).toBe("intellij");
+    expect(ideOf(app("WebStorm.app/Contents/MacOS/webstorm"))).toBe("webstorm");
+    expect(ideOf(app("Zed.app/Contents/MacOS/zed"))).toBe("zed");
+    for (const comm of ["/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal", "tmux", "/bin/zsh", "-zsh"]) expect(ideOf(comm)).toBeNull();
+  });
+
+  it("keeps only IDEs it knows, also in a saved config.json", () => {
+    expect(isIdeId("pycharm")).toBe(true);
+    for (const v of ["notepad", "", null, 3]) expect(isIdeId(v)).toBe(false);
+    expect(cleanSettings({ ide: "goland" as never }).ide).toBe("vscode");
+    expect(cleanSettings({ ide: "zed" }).ide).toBe("zed");
+  });
+
+  it("opens a session in its own IDE, and uses the Settings choice only outside one", () => {
+    expect(openTarget({ tmux: "work:1.0", ide: null }, "pycharm")).toEqual({ kind: "tmux" });
+    expect(openTarget({ tmux: null, ide: "pycharm" }, "vscode")).toEqual({ kind: "ide", ide: "pycharm" });
+    expect(openTarget({ tmux: null, ide: null }, "zed")).toEqual({ kind: "ide", ide: "zed" });
+    expect(targetName({ kind: "tmux" })).toBe("Terminal");
+    expect(targetName({ kind: "ide", ide: "intellij" })).toBe("IntelliJ IDEA");
+  });
+
+  it("refuses a missing folder, and a folder outside git in a JetBrains IDE", async () => {
+    expect(await openInIde("vscode", "/no/such/folder", true)).toEqual({ ok: false, message: "That folder is gone: /no/such/folder" });
+    const r = await openInIde("pycharm", tmpdir(), false);
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain("only git repos");
   });
 });

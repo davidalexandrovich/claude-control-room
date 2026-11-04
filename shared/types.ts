@@ -121,7 +121,6 @@ export interface Session {
   contextPercent: number | null;
   costUsd: number | null;
   repoName: string; // e.g. "storefront"
-  where: "ide" | "tmux" | "terminal" | "other";
   ide: IdeId | null; // the IDE whose terminal runs the session
   vscodeLinked: boolean; // the VS Code helper can reach this terminal
   transcriptPath: string | null;

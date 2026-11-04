@@ -1,5 +1,6 @@
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isIdeId } from "../shared/ides.ts";
 import type { Settings } from "../shared/types.ts";
 import { CONFIG_FILE } from "./paths.ts";
 
@@ -16,10 +17,17 @@ export const DEFAULT_SETTINGS: Settings = {
 
 let current: Settings = { ...DEFAULT_SETTINGS };
 
+/** Saved settings over the defaults. An IDE this build does not know (from a newer build, or typed by hand) falls back. */
+export function cleanSettings(raw: Partial<Settings>): Settings {
+  const s = { ...DEFAULT_SETTINGS, ...raw };
+  if (!isIdeId(s.ide)) s.ide = DEFAULT_SETTINGS.ide;
+  return s;
+}
+
 export async function loadSettings(): Promise<Settings> {
   try {
     const raw = JSON.parse(await readFile(CONFIG_FILE, "utf8")) as Partial<Settings>;
-    current = { ...DEFAULT_SETTINGS, ...raw };
+    current = cleanSettings(raw);
   } catch {
     current = { ...DEFAULT_SETTINGS };
   }

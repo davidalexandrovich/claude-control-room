@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
 import type { ServerResponse } from "node:http";
 import type { SetupState } from "../shared/types.ts";
-import { VSCODE_APP, VSCODE_CLI, VSCODE_EXTENSIONS_DIR, VSCODE_HELPER_ID } from "./paths.ts";
-import { launch, run, sleep } from "./proc.ts";
+import { openVscode, vscodeCli } from "./ide.ts";
+import { VSCODE_EXTENSIONS_DIR, VSCODE_HELPER_ID } from "./paths.ts";
+import { run, sleep } from "./proc.ts";
 
 export interface BridgeTerminal {
   pid: number; // the shell pid VS Code started
@@ -108,14 +109,15 @@ function command(w: BridgeWindow, cmd: Record<string, unknown>, timeoutMs = 4_00
 export async function focusTerminal(shellPid: number): Promise<{ ok: boolean; message: string }> {
   const w = windowFor(shellPid);
   if (!w) {
-    launch("open", ["-a", VSCODE_APP]);
+    await openVscode();
     return { ok: false, message: "Opened VS Code. Install the VS Code helper to jump straight to the session's terminal." };
   }
-  if (w.folders[0] && existsSync(VSCODE_CLI)) {
+  const cli = vscodeCli();
+  if (w.folders[0] && cli) {
     // `code <folder>` raises the window that already has the folder open instead of opening a new one.
-    await run(VSCODE_CLI, [w.folders[0]], { timeoutMs: 8_000 });
+    await run(cli, [w.folders[0]], { timeoutMs: 8_000 });
   } else {
-    launch("open", ["-a", VSCODE_APP]);
+    await openVscode();
   }
   await sleep(150);
   return command(w, { type: "focus", pid: shellPid });
@@ -148,10 +150,11 @@ export async function closeTerminal(shellPid: number): Promise<{ ok: boolean; me
 }
 
 export async function installHelper(vsixPath: string): Promise<{ ok: boolean; message: string }> {
-  if (!existsSync(VSCODE_CLI)) return { ok: false, message: "VS Code was not found in /Applications." };
+  const cli = vscodeCli();
+  if (!cli) return { ok: false, message: "VS Code was not found in Applications." };
   if (!existsSync(vsixPath)) return { ok: false, message: `The helper package is missing: ${vsixPath}` };
   const update = windows.size > 0;
-  const out = await run(VSCODE_CLI, ["--install-extension", vsixPath, "--force"], { timeoutMs: 60_000 });
+  const out = await run(cli, ["--install-extension", vsixPath, "--force"], { timeoutMs: 60_000 });
   if (!out.ok) return { ok: false, message: (out.stderr || out.stdout).trim() };
   if (update) return { ok: true, message: "Updated. In VS Code, run “Developer: Restart Extension Host” to start the new helper. Your terminals keep running." };
   return { ok: true, message: "Installed. If a VS Code window does not connect within a minute, run “Developer: Reload Window” in it." };

@@ -4,7 +4,7 @@ import { ideName } from "../../../shared/ides.ts";
 import type { ChatLine, Session } from "../../../shared/types.ts";
 import { duration, folderName, money, startedLabel } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
-import { act, api, setState, useIdeName } from "../store.ts";
+import { act, api, setState, useOpenName } from "../store.ts";
 import { ApprovalCard, NameEditor, openUrl, PrChip, QuestionCard, RemoteButton, RenameButton } from "./Monitor.tsx";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 
@@ -77,7 +77,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
   const g = s.git;
   const [showClaims, setShowClaims] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   const where = s.tmux ? `tmux ${s.tmux.split(":")[0]}` : s.ide ? `${ideName(s.ide)} terminal${s.vscodeLinked ? " (linked)" : ""}` : "Terminal";
   return (
     <div className={`detail detail-${variant} st-${a.kind}`}>
@@ -106,7 +106,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
 
       <div className="detail-actions">
         <button type="button" className="btn btn-primary" onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`, {}, true)}>
-          <CodeXml size={15} /> Open in {ide}
+          <CodeXml size={15} /> Open in {openIn}
         </button>
         <RemoteButton s={s} look="button" />
         {s.pr && (

@@ -168,7 +168,10 @@ It deletes folders only. Your branches stay, on GitHub and on your Mac.
 - [Claude Code](https://github.com/anthropics/claude-code) (the `claude` command).
 - Optional: the [GitHub CLI](https://cli.github.com) `gh`, signed in, for pull request status.
 - Optional: [VS Code](https://code.visualstudio.com), to jump to a session's terminal and to answer from the dashboard.
-  **Open in** also works with Cursor, PyCharm, IntelliJ IDEA, WebStorm and Zed: pick one in **Settings → Open sessions in**. These open the session's folder.
+  **Open in** also works with Cursor, PyCharm, IntelliJ IDEA, WebStorm and Zed. A session opens in the IDE whose terminal runs it.
+  Sessions in other terminals open their folder in the IDE you pick in **Settings → Open other sessions in**.
+  PyCharm, IntelliJ IDEA and WebStorm open only git repos, because they add a `.idea/` folder to what they open.
+  Put `.idea/` in your global gitignore, or worktree cleanup counts it as unsaved work.
 - Optional: for **rc**, the Claude app on your phone, and Claude Code signed in with a claude.ai plan. See [Remote Control](https://code.claude.com/docs/en/remote-control).
 
 **Build and install (about 3 minutes):**
@@ -258,7 +261,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 |---|---|
 | `1` – `9` | Select a tile |
 | `←` `→` | Move between tiles |
-| `↵` | Open the selected session in your IDE |
+| `↵` | Open the selected session in its IDE |
 | `Space` | Show or hide its details |
 | `A` / `R` | Approve or reject |
 | `P` | Open its pull request |

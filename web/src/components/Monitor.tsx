@@ -20,7 +20,7 @@ import { type MouseEvent, useRef, useState } from "react";
 import type { PullRequest, Session } from "../../../shared/types.ts";
 import { duration } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
-import { act, api, setState, useIdeName, useStore } from "../store.ts";
+import { act, api, setState, useOpenName, useStore } from "../store.ts";
 import { IconButton, Ring, StatusOrb, useNow } from "./Primitives.tsx";
 
 export function openUrl(url: string): void {
@@ -114,7 +114,7 @@ export function lastWords(s: Session): { who: string; text: string } | null {
 
 export function ApprovalCard({ s }: { s: Session }) {
   const busy = useStore((st) => st.busy);
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   const reachable = s.vscodeLinked || !!s.tmux;
   const t = s.activity.tool;
   return (
@@ -140,7 +140,7 @@ export function ApprovalCard({ s }: { s: Session }) {
         </button>
         {!reachable && (
           <button type="button" className="btn btn-link" onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`)}>
-            Open in {ide}
+            Open in {openIn}
           </button>
         )}
       </div>
@@ -155,7 +155,7 @@ export function ApprovalCard({ s }: { s: Session }) {
 
 export function QuestionCard({ s }: { s: Session }) {
   const busy = useStore((st) => st.busy);
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   const q = s.activity.question;
   const reachable = s.vscodeLinked || !!s.tmux;
   const answerable = reachable && q && q.count === 1 && !q.multiSelect && q.options.length > 0;
@@ -181,7 +181,7 @@ export function QuestionCard({ s }: { s: Session }) {
       ) : (
         <div className="ask-buttons">
           <button type="button" className="btn btn-approve" onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`)}>
-            Answer in {ide}
+            Answer in {openIn}
           </button>
         </div>
       )}
@@ -290,7 +290,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
   const words = lastWords(s);
   const asking = a.kind === "approval" || a.kind === "question";
   const [renaming, setRenaming] = useState(false);
-  const ide = useIdeName();
+  const openIn = useOpenName(s);
   return (
     <motion.article
       layout
@@ -308,7 +308,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
         {renaming ? <NameEditor s={s} className="mon-title" onDone={() => setRenaming(false)} /> : <h3 className="mon-title">{s.name}</h3>}
         <div className="mon-actions">
           <RenameButton s={s} onClick={() => setRenaming(true)} />
-          <IconButton label={`Open in ${ide}`} onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`, {}, true)}>
+          <IconButton label={`Open in ${openIn}`} onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`, {}, true)}>
             <CodeXml size={15} />
           </IconButton>
           <IconButton label="Pop out to its own window" onClick={() => popoutSession(s.pid)}>

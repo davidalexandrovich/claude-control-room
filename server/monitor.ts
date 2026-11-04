@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { IdeId } from "../shared/ides.ts";
 import type { ChatLine, Session, Snapshot, Summary } from "../shared/types.ts";
 import { currentAccount } from "./account.ts";
 import { deriveActivity, type StatusFile } from "./activity.ts";
@@ -98,17 +99,17 @@ async function findTranscript(sessionId: string, cwd: string): Promise<string | 
   return found;
 }
 
-function hostOf(pid: number, procs: Map<number, ProcRow>): Pick<Session, "where" | "ide"> {
+/** The IDE whose terminal runs the process; null when tmux, a terminal app or nothing known comes first. */
+function hostIde(pid: number, procs: Map<number, ProcRow>): IdeId | null {
   let cur = procs.get(pid);
   for (let i = 0; i < 8 && cur; i++) {
     const comm = cur.comm;
     const ide = ideOf(comm);
-    if (ide) return { where: "ide", ide };
-    if (/tmux/.test(basename(comm))) return { where: "tmux", ide: null };
-    if (/Terminal\.app|iTerm|Ghostty|WezTerm|kitty|Warp/i.test(comm)) return { where: "terminal", ide: null };
+    if (ide) return ide;
+    if (/tmux/.test(basename(comm)) || /Terminal\.app|iTerm|Ghostty|WezTerm|kitty|Warp/i.test(comm)) return null;
     cur = procs.get(cur.ppid);
   }
-  return { where: "other", ide: null };
+  return null;
 }
 
 function fallbackSummary(input: { story: string | null; note: string | null; title: string | null; firstPrompt: string | null }): Summary {
@@ -300,7 +301,6 @@ export class Monitor {
 
     const chat: ChatLine[] = t ? t.chat.slice(-PREVIEW_LINES) : [];
     const effort = tap?.effort ?? ask?.effort ?? t?.effort ?? this.effortDefault;
-    const host: Pick<Session, "where" | "ide"> = f.tmux ? { where: "tmux", ide: null } : hostOf(f.pid, procs);
     return {
       pid: f.pid,
       shellPid,
@@ -326,8 +326,7 @@ export class Monitor {
       contextPercent: tap?.contextPercent ?? null,
       costUsd: tap?.costUsd ?? t?.costUsd ?? null,
       repoName: git ? basename(git.mainRoot) : basename(cwd),
-      where: host.where,
-      ide: host.ide,
+      ide: f.tmux ? null : hostIde(f.pid, procs),
       vscodeLinked: windowFor(shellPid) !== null,
       transcriptPath: path,
       tmux: f.tmux,

@@ -409,7 +409,6 @@ function sessionOf(s: Seed, now: number): Session {
     contextPercent: s.context,
     costUsd: s.cost,
     repoName: s.repo,
-    where: "ide",
     ide: "vscode",
     vscodeLinked: true,
     transcriptPath: null,
