@@ -7,7 +7,7 @@ import { prForBranch, type PrRow } from "./github.ts";
 import { openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { readSessionFiles } from "./monitor.ts";
-import { cleanName } from "./names.ts";
+import { cleanName, saveName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
 import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
 import { closeTerminal, focusTerminal, renameTerminal, sendText } from "./vscode.ts";
@@ -131,17 +131,30 @@ export async function focusSession(monitor: Monitor, pid: number): Promise<Actio
   return openInIde(target.ide, s.git?.root ?? s.cwd, !!s.git);
 }
 
-/** Renames the session's VS Code tab. The tile takes the tab's name, so both show the new name. */
+/**
+ * Renames the session's VS Code tab, and the tile takes the tab's name. A session outside VS Code keeps its name in
+ * Control Room; an empty name there brings back the name Claude Code gives it.
+ */
 export async function renameSession(monitor: Monitor, pid: number, raw: unknown): Promise<ActionResult> {
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
   const name = cleanName(raw);
-  if (!name) return { ok: false, message: "Type a name first." };
-  if (!s.vscodeLinked) return { ok: false, message: "Rename works for sessions in a VS Code terminal, with the VS Code helper (Settings)." };
-  const r = await renameTerminal(s.shellPid, name);
-  if (!r.ok) return r;
+  if (s.ide === "vscode") {
+    // A name saved here would lose to the tab's name once the helper connects, so VS Code tabs go through the helper only.
+    if (!name) return { ok: false, message: "Type a name first." };
+    if (!s.vscodeLinked) return { ok: false, message: "Rename works for sessions in a VS Code terminal, with the VS Code helper (Settings)." };
+    const r = await renameTerminal(s.shellPid, name);
+    if (!r.ok) return r;
+  } else {
+    if (!name && s.nameSource !== "saved") return { ok: false, message: "Type a name first." };
+    try {
+      await saveName(s.sessionId, name);
+    } catch (err) {
+      return { ok: false, message: `The name was not saved: ${(err as Error).message}` };
+    }
+  }
   await monitor.tick();
-  return { ok: true, message: `Renamed to “${name}”` };
+  return { ok: true, message: name ? `Renamed to “${name}”` : "Name cleared" };
 }
 
 export function openUrl(url: string): ActionResult {

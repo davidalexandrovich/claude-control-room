@@ -288,16 +288,18 @@ describe("session names", () => {
     for (const raw of ["", " \n ", null, 7, {}]) expect(cleanName(raw)).toBeNull();
   });
 
-  it("puts the tab's name first, then the names Claude Code knows", () => {
-    const parts: NameParts = { tab: "Dark mode 2", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo" };
+  it("puts the tab's name first, then a name saved here, then the names Claude Code knows", () => {
+    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo" };
     expect(pickName(parts)).toEqual(["Dark mode 2", "tab"]);
+    expect(pickName({ ...parts, tab: null })).toEqual(["Dark mode, saved", "saved"]);
+    parts.saved = null;
     expect(pickName({ ...parts, tab: null })).toEqual(["Settings | P6", "custom"]);
     expect(pickName({ ...parts, tab: null, custom: null })).toEqual(["Dark theme for Settings", "title"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null })).toEqual(["Dark mode", "story"]);
     // A branch or folder name says little, so the plain-English headline goes before it.
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
-    expect(pickName({ tab: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
+    expect(pickName({ tab: null, saved: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
   });
 });
 

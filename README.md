@@ -107,6 +107,8 @@ Rename the tab in VS Code, and the tile follows within two seconds.
 
 To rename from Control Room, click ✏️ on the tile, or next to the name in the details. Type the new name and press Enter.
 The VS Code tab gets the new name too. Esc cancels.
+A session in another terminal, like PyCharm's, keeps the name in Control Room only. Its terminal tab does not change.
+That name wins over `/rename`. To go back to the automatic name, rename it to nothing: clear the box and press Enter.
 A tab you never named shows only the program's name, like `claude`. Then the tile uses Claude Code's own title for the session.
 
 ### Plain English, for everyone
@@ -300,9 +302,10 @@ First it clears anything you typed there but did not send. Press `Ctrl+Y` in tha
 Then it types `/remote-control` and presses Enter.
 
 A tile's name comes from the first of these that it has:
-the name you gave its VS Code tab, the name from `/rename`, Claude Code's own title, the Shortcut story,
+the name you gave its VS Code tab, the name you gave it in Control Room, the name from `/rename`, Claude Code's own title, the Shortcut story,
 the plain-English summary, the branch, and last the folder.
 **Rename** asks the VS Code helper to rename the tab, the same as **Rename** in VS Code. It types nothing into the session.
+For a session outside VS Code, the name goes to `~/.claude-control-room/names.json`, by session id.
 
 </details>
 
@@ -314,7 +317,7 @@ the plain-English summary, the branch, and last the folder.
 - The app's server listens on `127.0.0.1` only. Other computers cannot reach it.
 - It checks the `Host` and `Origin` of every request. Every action also needs a header that a web page from another site cannot send.
 - Approve, Reject and **rc** read the session's status again right before they press a key. **rc** never types into a session that is asking you something.
-- **Rename** changes only the VS Code tab. It never types into the session.
+- **Rename** changes only the VS Code tab, or for other terminals `~/.claude-control-room/names.json`. It never types into the session.
 - Shortcut tokens stay in `~/.claude-control-room/config.json`. The page only ever sees their last four characters.
 - The only calls that leave your Mac are: GitHub, through your own `gh`; Shortcut, only if you add a token; and your own `claude` command, for your account status and the short summaries.
 - After **rc**, Claude Code itself shares that session with your claude.ai account, as `/remote-control` always does. Control Room sends nothing there.
@@ -339,7 +342,7 @@ The dashboard needs a way to type into the session's terminal. Install the VS Co
   It also needs a claude.ai login, not an API key. On Team and Enterprise plans, an admin must turn Remote Control on first.
 
 **Rename is grey, or does not work.**
-- *Grey:* rename works for sessions in a VS Code terminal, with the VS Code helper.
+- *Grey:* a session in a VS Code terminal needs the VS Code helper, because the name goes on its tab.
 - *"Update the VS Code helper first":* click **Settings → VS Code helper → Update**. Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep running.
 
 **An approval card shows no command.**

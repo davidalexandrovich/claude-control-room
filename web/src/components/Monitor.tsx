@@ -229,23 +229,25 @@ export function RemoteButton({ s, look = "pill" }: { s: Session; look?: "pill" |
   );
 }
 
-/** Starts a rename. It renames the session's VS Code tab too, so it needs the VS Code helper. */
+/** Starts a rename. A VS Code session gets the name on its tab, so it needs the helper; any other keeps it in Control Room. */
 export function RenameButton({ s, onClick }: { s: Session; onClick: () => void }) {
+  const needsHelper = s.ide === "vscode" && !s.vscodeLinked;
+  const label = s.vscodeLinked ? "Rename (its VS Code tab too)" : needsHelper ? "Rename needs the VS Code helper (Settings)" : "Rename";
   return (
-    <IconButton label={s.vscodeLinked ? "Rename (its VS Code tab too)" : "Rename works for sessions in VS Code terminals"} disabled={!s.vscodeLinked} onClick={onClick}>
+    <IconButton label={label} disabled={needsHelper} onClick={onClick}>
       <Pencil size={14} />
     </IconButton>
   );
 }
 
-/** A box for the session's new name: Enter saves it, on the VS Code tab too; Esc cancels. */
+/** A box for the session's new name: Enter saves it, on its VS Code tab too when it has one; Esc cancels. Saving an empty box drops a name saved in Control Room. */
 export function NameEditor({ s, className, onDone }: { s: Session; className: string; onDone: () => void }) {
   const [value, setValue] = useState(s.name);
   const box = useRef<HTMLInputElement>(null);
   const saving = useStore((st) => !!st.busy[`${s.pid}:rename`]);
   const save = async () => {
     const name = value.trim();
-    if (!name || name === s.name) return onDone();
+    if (name === s.name || (!name && s.nameSource !== "saved")) return onDone();
     if ((await act(`${s.pid}:rename`, `/api/sessions/${s.pid}/rename`, { name }, true)).ok) onDone();
     else box.current?.focus();
   };
@@ -258,6 +260,7 @@ export function NameEditor({ s, className, onDone }: { s: Session; className: st
       readOnly={saving}
       autoFocus
       aria-label="New name"
+      placeholder={s.nameSource === "saved" ? "Leave empty for the automatic name" : undefined}
       onFocus={(e) => e.currentTarget.select()}
       onChange={(e) => setValue(e.target.value)}
       onClick={(e) => e.stopPropagation()}
