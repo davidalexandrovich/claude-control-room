@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveActivity, endsWithQuestion, type StatusFile } from "../server/activity.ts";
 import { parseRemote, parseShortstat } from "../server/git.ts";
+import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { etimeSeconds, loginAgeFrom } from "../server/proc.ts";
 import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
 import { summarizeChecks } from "../server/github.ts";
@@ -263,5 +264,35 @@ describe("remote control", () => {
     expect(CLEAR_DRAFT.map(([text]) => text).join("")).toMatch(/^\u0005\u0015+$/);
     expect(CLEAR_DRAFT.map(([, key]) => key)).toEqual(["C-e", "C-u", "C-u", "C-u", "C-u", "C-u", "C-u"]);
     expect(REMOTE_COMMAND).toBe("/remote-control ");
+  });
+});
+
+describe("session names", () => {
+  it("takes a VS Code tab's name only when a person gave it", () => {
+    for (const name of ["Checkout tests", "Review #812", "Search & filters | Regression tests", "Dark mode 2"]) expect(tabName(name)).toBe(name);
+    // The shell, the program, a version or Claude Code's own title say nothing about the work.
+    for (const raw of ["zsh", "bash", "node", "claude", "Claude Code", "2.1.310", "✳ Fix the login page", "◐ Fix the login page", "", "   ", null, undefined, 42]) {
+      expect(tabName(raw)).toBeNull();
+    }
+  });
+
+  it("keeps a typed name on one line, without control characters, and not too long", () => {
+    expect(cleanName("  Dark\nmode\t ")).toBe("Dark mode");
+    expect(cleanName("a\u0007\u001b[31mb")).toBe("a [31mb");
+    expect(cleanName("Тест · 測試 · 🚀")).toBe("Тест · 測試 · 🚀");
+    expect([...cleanName("🚀".repeat(MAX_NAME + 5))!].length).toBe(MAX_NAME);
+    for (const raw of ["", " \n ", null, 7, {}]) expect(cleanName(raw)).toBeNull();
+  });
+
+  it("puts the tab's name first, then the names Claude Code knows", () => {
+    const parts: NameParts = { tab: "Dark mode 2", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo" };
+    expect(pickName(parts)).toEqual(["Dark mode 2", "tab"]);
+    expect(pickName({ ...parts, tab: null })).toEqual(["Settings | P6", "custom"]);
+    expect(pickName({ ...parts, tab: null, custom: null })).toEqual(["Dark theme for Settings", "title"]);
+    expect(pickName({ ...parts, tab: null, custom: null, title: null })).toEqual(["Dark mode", "story"]);
+    // A branch or folder name says little, so the plain-English headline goes before it.
+    expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
+    expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
+    expect(pickName({ tab: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
   });
 });

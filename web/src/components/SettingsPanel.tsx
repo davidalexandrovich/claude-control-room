@@ -117,17 +117,19 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
             title="VS Code helper"
             text={
               setup.vscodeHelper === "connected"
-                ? `Connected to ${setup.vscodeWindows} VS Code window${setup.vscodeWindows === 1 ? "" : "s"}. Jump to a session's terminal and approve from here.`
-                : setup.vscodeHelper === "installed"
-                  ? "Installed, waiting for VS Code. Run “Developer: Reload Window” in VS Code if it does not connect."
-                  : "A tiny VS Code extension that finds the terminal of each session."
+                ? `Connected to ${setup.vscodeWindows} VS Code window${setup.vscodeWindows === 1 ? "" : "s"}. Jump to a session's terminal, approve and rename from here.`
+                : setup.vscodeHelper === "outdated"
+                  ? "Connected, but this helper is too old to rename tabs. Update it, then run “Developer: Restart Extension Host” in VS Code."
+                  : setup.vscodeHelper === "installed"
+                    ? "Installed, waiting for VS Code. Run “Developer: Reload Window” in VS Code if it does not connect."
+                    : "A tiny VS Code extension that finds the terminal of each session."
             }
           >
             {setup.vscodeHelper === "connected" ? (
               <State ok text="Connected" />
             ) : (
               <button type="button" className="btn btn-primary btn-sm" disabled={busy.vscode} onClick={() => void act("vscode", "/api/setup/vscode")}>
-                {setup.vscodeHelper === "installed" ? "Reinstall" : "Install"}
+                {setup.vscodeHelper === "outdated" ? "Update" : setup.vscodeHelper === "installed" ? "Reinstall" : "Install"}
               </button>
             )}
           </Line>

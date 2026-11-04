@@ -69,6 +69,14 @@ describe("demo server", () => {
     expect((await snapshot()).sessions.find((s) => s.pid === asking.pid)?.remoteUrl).toBeNull();
   });
 
+  it("renames a session, and refuses an empty name", async () => {
+    const s = (await snapshot()).sessions[0];
+    expect((await (await post(`/api/sessions/${s.pid}/rename`, { name: "  Checkout\ntests " })).json()).ok).toBe(true);
+    const renamed = (await snapshot()).sessions.find((x) => x.pid === s.pid)!;
+    expect([renamed.name, renamed.nameSource]).toEqual(["Checkout tests", "tab"]);
+    expect((await (await post(`/api/sessions/${s.pid}/rename`, { name: " " })).json()).ok).toBe(false);
+  });
+
   it("keeps the live server's guards", async () => {
     expect((await post("/api/power", { on: false }, {})).status).toBe(403);
     expect((await fetch(`${demo.url}api/snapshot`, { headers: { Origin: "https://example.com" } })).status).toBe(403);

@@ -99,8 +99,8 @@ export interface Session {
   pid: number;
   shellPid: number; // the terminal shell that runs claude
   sessionId: string;
-  name: string; // best display title
-  nameSource: "custom" | "title" | "story" | "summary" | "branch" | "folder";
+  name: string; // best display title: the VS Code tab's name when it has one
+  nameSource: "tab" | "custom" | "title" | "story" | "summary" | "branch" | "folder";
   shortName: string; // Claude's derived name, e.g. "storefront-9a"
   cwd: string;
   startedAt: number;
@@ -153,7 +153,7 @@ export interface PowerState {
 export interface SetupState {
   statusLine: "installed" | "missing" | "foreign"; // foreign = the user has their own status line, we wrap it
   hooks: boolean; // the permission hook that tells what an approval prompt asks
-  vscodeHelper: "connected" | "installed" | "missing";
+  vscodeHelper: "connected" | "outdated" | "installed" | "missing"; // outdated = connected, but too old to rename tabs
   vscodeWindows: number;
   ghReady: boolean;
   shortcutReady: boolean;

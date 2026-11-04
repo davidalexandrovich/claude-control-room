@@ -37,6 +37,7 @@ No more searching through terminal tabs.
 - 🚦 **Live status in plain words:** working, needs your approval, asked you a question, waiting for your reply, idle, inactive.
 - ✅ **Approve, reject and answer** from the dashboard or from the menu bar. You see the exact command first.
 - 📱 **Take a session to your phone.** Click **rc** on its tile, and the session shows up in the Claude app. It keeps running on your Mac.
+- 🏷️ **The same names as your VS Code tabs.** A tile shows the name of its terminal tab. Rename a session here, and its tab gets the new name too.
 - 🗣️ **Plain-English summaries.** Each session says what it works on in one short sentence. Anyone on the team can read it.
 - 🔀 **Git and GitHub on every tile:** branch, changes, pull request, checks and review.
 - 📊 **Your Claude usage:** the 5-hour and weekly limits, with their reset times.
@@ -77,7 +78,7 @@ No more searching through terminal tabs.
 The overview on top counts your sessions, lists what needs you, and shows your pull requests and usage.
 Below it, each session is a tile, like a monitor on a wall. Every tile has three parts:
 
-- **Top:** the title, the **rc** button, the task in plain English, and chips for the PR, the story and the branch.
+- **Top:** the name, the **rc** button, the task in plain English, and chips for the PR, the story and the branch.
 - **Middle:** the status, big and clear, with buttons when the session needs you.
 - **Bottom:** model · effort · repository, and a ring that shows how full the context window is.
 
@@ -98,6 +99,15 @@ It keeps running on your Mac, so you can reply from your phone or from the termi
 
 A green **rc** means the session is on your phone. Click it to open the session at claude.ai.
 It works while Claude is busy too. Only a session that is asking you something must get its answer first.
+
+### Names you choose
+
+A tile has the same name as the session's VS Code terminal tab.
+Rename the tab in VS Code, and the tile follows within two seconds.
+
+To rename from Control Room, click ✏️ on the tile, or next to the name in the details. Type the new name and press Enter.
+The VS Code tab gets the new name too. Esc cancels.
+A tab you never named shows only the program's name, like `claude`. Then the tile uses Claude Code's own title for the session.
 
 ### Plain English, for everyone
 
@@ -192,6 +202,7 @@ A banner at the top of the dashboard offers two steps:
    **Settings → Claude Code → Disconnect** removes both and gives your old status line back.
 2. **Install the VS Code helper.** This is a tiny local extension. It tells the dashboard which VS Code terminal runs which session.
    Then **Open in VS Code** shows the right terminal, and Approve, Reject and answers work from the dashboard.
+   Tiles also take the names of your terminal tabs, and you can rename them from the dashboard.
    If a VS Code window does not connect within a minute, run **Developer: Reload Window** in it. Your terminals survive the reload.
 
 You can also do these later, in **Settings**:
@@ -213,6 +224,9 @@ rsync -a --delete "release/mac-arm64/Control Room.app/" "/Applications/Control R
 open "/Applications/Control Room.app"
 ```
 
+If **Settings** then says the VS Code helper is outdated, click **Update**.
+Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep running.
+
 ### Uninstall
 
 1. In the dashboard, open **Settings → Claude Code → Disconnect**. This puts your old status line back.
@@ -230,6 +244,7 @@ open "/Applications/Control Room.app"
 | Put the wall on another screen | Click **Wall on…** in the panel, or **Wall on display** in the dashboard. |
 | Watch one session on its own | Click the pop-out button on its tile. |
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
+| Rename a session | Click ✏️ on its tile or in its details, type the name, press Enter. Its VS Code tab gets the name too. |
 | Move the icon | Hold ⌘ and drag the icon along the menu bar. |
 | Quit | Right-click the icon and choose **Quit**. |
 
@@ -271,6 +286,7 @@ There is no database and no cloud service. About once a second, the app reads:
 | `git` and `gh` | branch, changes, pull request, checks and review |
 | `<repo>/.git/*-sessions.json` (optional) | worktree claims, if your repo keeps a registry of which session works where |
 | the Shortcut API (optional) | story names and states |
+| the VS Code helper (optional) | which terminal runs each session, and the name on its tab |
 
 The one-line summaries come from one short call to Claude Haiku, through your own `claude` command.
 Each call costs about 0.03¢, and it runs only when a session has moved on.
@@ -278,6 +294,11 @@ Each call costs about 0.03¢, and it runs only when a session has moved on.
 **rc** types into the session's terminal, the same way Approve does: through `tmux`, or through the VS Code helper.
 First it clears anything you typed there but did not send. Press `Ctrl+Y` in that session to get it back.
 Then it types `/remote-control` and presses Enter.
+
+A tile's name comes from the first of these that it has:
+the name you gave its VS Code tab, the name from `/rename`, Claude Code's own title, the Shortcut story,
+the plain-English summary, the branch, and last the folder.
+**Rename** asks the VS Code helper to rename the tab, the same as **Rename** in VS Code. It types nothing into the session.
 
 </details>
 
@@ -289,6 +310,7 @@ Then it types `/remote-control` and presses Enter.
 - The app's server listens on `127.0.0.1` only. Other computers cannot reach it.
 - It checks the `Host` and `Origin` of every request. Every action also needs a header that a web page from another site cannot send.
 - Approve, Reject and **rc** read the session's status again right before they press a key. **rc** never types into a session that is asking you something.
+- **Rename** changes only the VS Code tab. It never types into the session.
 - Shortcut tokens stay in `~/.claude-control-room/config.json`. The page only ever sees their last four characters.
 - The only calls that leave your Mac are: GitHub, through your own `gh`; Shortcut, only if you add a token; and your own `claude` command, for your account status and the short summaries.
 - After **rc**, Claude Code itself shares that session with your claude.ai account, as `/remote-control` always does. Control Room sends nothing there.
@@ -311,6 +333,10 @@ The dashboard needs a way to type into the session's terminal. Install the VS Co
 - *Can't type in this terminal:* rc needs the VS Code helper, or a session that runs in `tmux`. In other terminals, type `/rc` yourself.
 - *Did not connect:* look at the session. The first time, Claude Code asks you there to confirm Remote Control.
   It also needs a claude.ai login, not an API key. On Team and Enterprise plans, an admin must turn Remote Control on first.
+
+**Rename is grey, or does not work.**
+- *Grey:* rename works for sessions in a VS Code terminal, with the VS Code helper.
+- *"Update the VS Code helper first":* click **Settings → VS Code helper → Update**. Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep running.
 
 **An approval card shows no command.**
 That session started before you connected Claude Code. Sessions you start after connecting show everything.

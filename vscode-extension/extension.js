@@ -7,12 +7,16 @@ const os = require("os");
 const path = require("path");
 
 const BRIDGE_FILE = path.join(os.homedir(), ".claude-control-room", "bridge.json");
+// What this helper can do beyond focus, send and close; the dashboard asks for an update when one is missing.
+const FEATURES = ["rename"];
 const windowId = crypto.randomUUID();
 
 let port = null;
 let stream = null;
 let retryTimer = null;
 let helloTimer = null;
+let namesTimer = null;
+let lastNames = "";
 let stopped = false;
 
 function readPort() {
@@ -66,7 +70,36 @@ async function sayHello() {
     folders: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath),
     focused: vscode.window.state.focused,
     terminals: await terminalList(),
+    features: FEATURES,
   });
+}
+
+// VS Code has no event for a renamed tab, so look at the names every two seconds.
+function watchNames() {
+  const names = vscode.window.terminals.map((t) => t.name).join("\n");
+  if (names === lastNames) return;
+  lastNames = names;
+  scheduleHello();
+}
+
+async function waitFor(check, ms = 1500) {
+  for (let waited = 0; !check(); waited += 50) {
+    if (waited >= ms) return false;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return true;
+}
+
+async function rename(term, name) {
+  const before = vscode.window.activeTerminal;
+  // VS Code renames only the active terminal. Make this one active first, or a wrong tab gets the name.
+  term.show(true);
+  if (!(await waitFor(() => vscode.window.activeTerminal === term))) return { ok: false, message: "VS Code did not switch to that terminal" };
+  await vscode.commands.executeCommand("workbench.action.terminal.renameWithArg", { name });
+  const renamed = await waitFor(() => term.name === name);
+  if (before && before !== term) before.show(true);
+  scheduleHello();
+  return renamed ? { ok: true, message: "Renamed" } : { ok: false, message: "VS Code did not rename the tab" };
 }
 
 async function findTerminal(pid) {
@@ -93,6 +126,8 @@ async function handle(cmd) {
       term.dispose();
       ok = true;
       message = "Closed";
+    } else if (cmd.type === "rename" && typeof cmd.name === "string" && cmd.name.trim()) {
+      ({ ok, message } = await rename(term, cmd.name));
     }
   }
   await post("/bridge/result", { requestId: cmd.requestId, ok, message });
@@ -159,11 +194,13 @@ function activate(context) {
   );
   // Terminals restored after a reload get their pid a moment later.
   setTimeout(scheduleHello, 3000);
+  namesTimer = setInterval(watchNames, 2000);
 }
 
 function deactivate() {
   stopped = true;
   clearTimeout(retryTimer);
+  clearInterval(namesTimer);
   if (stream) stream.destroy();
 }
 

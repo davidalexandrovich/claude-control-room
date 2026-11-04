@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "../shared/types.ts";
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
+import { cleanName } from "./names.ts";
 import { sudoersLine } from "./power.ts";
 import { remoteRefusal } from "./remote.ts";
 
@@ -73,6 +74,12 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         update(pid, () => ({ remoteUrl: `https://claude.ai/code/session_demo${pid}` }));
         return { ok: true, message: "On your phone now: open the Claude app and tap Code." };
       }
+      case "rename": {
+        const name = cleanName((await body<{ name?: unknown }>(req)).name);
+        if (!name) return { ok: false, message: "Type a name first." };
+        update(pid, () => ({ name, nameSource: "tab" as const }));
+        return { ok: true, message: `Renamed to “${name}”` };
+      }
     }
     return null;
   }
@@ -106,7 +113,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote|rename)$/.exec(p);
     if (m) {
       const out = await sessionAction(Number(m[1]), m[2], req);
       return send(res, out ? 200 : 404, out ?? { ok: false, message: "Unknown action" });

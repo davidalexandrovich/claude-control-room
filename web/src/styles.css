@@ -1786,10 +1786,38 @@ button.chip:hover {
 .detail-close {
   margin-left: auto;
 }
-.detail-title {
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
   margin-top: 12px;
+}
+.detail-title {
+  min-width: 0;
   font: 680 21px/1.25 var(--display);
   letter-spacing: -0.02em;
+}
+.detail-title-row > .icon-btn {
+  width: 28px;
+  height: 28px;
+  margin-top: -1px;
+  color: var(--text-3);
+}
+/* a session name being renamed: the title's own font in a quiet box */
+.name-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  margin: -2px 0;
+  padding: 1px 7px;
+  border: 1px solid rgba(122, 162, 255, 0.55);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  outline: none;
+}
+.name-input[readonly] {
+  opacity: 0.6;
 }
 .detail-headline {
   margin-top: 6px;
@@ -1813,7 +1841,8 @@ button.chip:hover {
 }
 .detail-actions {
   display: flex;
-  flex-wrap: nowrap;
+  /* With a PR, a story and rc there are more buttons than one line of the side panel holds. */
+  flex-wrap: wrap;
   gap: 7px;
   padding: 6px 22px 14px;
   border-bottom: 1px solid var(--line);
@@ -1834,6 +1863,7 @@ button.chip:hover {
   margin-left: auto;
 }
 .btn-icon {
+  flex: none;
   width: 32px;
   padding: 0;
 }

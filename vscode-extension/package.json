@@ -1,8 +1,8 @@
 {
   "name": "control-room-bridge",
   "displayName": "Control Room Bridge",
-  "description": "Lets the Control Room dashboard find, show and answer your Claude Code terminals.",
-  "version": "0.1.0",
+  "description": "Lets the Control Room dashboard find, show, answer and rename your Claude Code terminals.",
+  "version": "0.2.0",
   "publisher": "local",
   "license": "MIT",
   "engines": { "vscode": "^1.85.0" },

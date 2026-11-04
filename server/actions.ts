@@ -4,9 +4,10 @@ import { git, listWorktrees } from "./git.ts";
 import { prForBranch, type PrRow } from "./github.ts";
 import type { Monitor } from "./monitor.ts";
 import { readSessionFiles } from "./monitor.ts";
+import { cleanName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
 import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
-import { closeTerminal, focusTerminal, sendText } from "./vscode.ts";
+import { closeTerminal, focusTerminal, renameTerminal, sendText } from "./vscode.ts";
 import { buildReport, insidePath } from "./worktrees.ts";
 
 const KEYS = { enter: "\r", escape: "\u001b" } as const;
@@ -119,6 +120,19 @@ export async function focusSession(monitor: Monitor, pid: number): Promise<Actio
   }
   const r = await focusTerminal(s.shellPid);
   return { ok: r.ok, message: r.ok ? "Opened in VS Code" : r.message };
+}
+
+/** Renames the session's VS Code tab. The tile takes the tab's name, so both show the new name. */
+export async function renameSession(monitor: Monitor, pid: number, raw: unknown): Promise<ActionResult> {
+  const s = find(monitor, pid);
+  if (!s) return { ok: false, message: "That session is gone." };
+  const name = cleanName(raw);
+  if (!name) return { ok: false, message: "Type a name first." };
+  if (!s.vscodeLinked) return { ok: false, message: "Rename works for sessions in a VS Code terminal, with the VS Code helper (Settings)." };
+  const r = await renameTerminal(s.shellPid, name);
+  if (!r.ok) return r;
+  await monitor.tick();
+  return { ok: true, message: `Renamed to “${name}”` };
 }
 
 export function openUrl(url: string): ActionResult {

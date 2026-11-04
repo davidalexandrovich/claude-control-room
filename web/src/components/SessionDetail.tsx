@@ -4,7 +4,7 @@ import type { ChatLine, Session } from "../../../shared/types.ts";
 import { duration, folderName, money, startedLabel } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
 import { act, api, setState } from "../store.ts";
-import { ApprovalCard, openUrl, PrChip, QuestionCard, RemoteButton } from "./Monitor.tsx";
+import { ApprovalCard, NameEditor, openUrl, PrChip, QuestionCard, RemoteButton, RenameButton } from "./Monitor.tsx";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 
 function useChat(pid: number): ChatLine[] {
@@ -75,6 +75,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
   const a = s.activity;
   const g = s.git;
   const [showClaims, setShowClaims] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const where = s.tmux ? `tmux ${s.tmux.split(":")[0]}` : s.where === "vscode" ? (s.vscodeLinked ? "VS Code terminal (linked)" : "VS Code terminal") : "Terminal";
   return (
     <div className={`detail detail-${variant} st-${a.kind}`}>
@@ -89,7 +90,10 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
             </button>
           )}
         </div>
-        <h2 className="detail-title">{s.name}</h2>
+        <div className="detail-title-row">
+          {renaming ? <NameEditor s={s} className="detail-title" onDone={() => setRenaming(false)} /> : <h2 className="detail-title">{s.name}</h2>}
+          {!renaming && <RenameButton s={s} onClick={() => setRenaming(true)} />}
+        </div>
         {s.nameSource !== "summary" && <p className="detail-headline">{s.summary.headline}</p>}
         {s.summary.now && <p className="detail-now">{s.summary.now}</p>}
         {a.detail && a.kind === "working" && <p className="detail-doing">{a.detail}</p>}

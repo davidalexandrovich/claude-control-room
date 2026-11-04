@@ -15,6 +15,7 @@ import {
   openUrl,
   pruneWorktrees,
   removeWorktrees,
+  renameSession,
   startRemoteControl,
 } from "./actions.ts";
 import { repoClaims } from "./claims.ts";
@@ -75,6 +76,8 @@ export async function startServer(opts: { port?: number; dev?: boolean } = {}): 
         return closeSession(monitor, pid, await body<CloseRequest>(req));
       case "remote":
         return startRemoteControl(monitor, pid);
+      case "rename":
+        return renameSession(monitor, pid, (await body<{ name?: unknown }>(req)).name);
     }
     return null;
   };
@@ -127,7 +130,7 @@ export async function startServer(opts: { port?: number; dev?: boolean } = {}): 
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|close|remote|rename)$/.exec(p);
     if (m) {
       const out = await sessionAction(Number(m[1]), m[2], req);
       return send(res, out ? 200 : 404, out ?? { ok: false, message: "Unknown action" });

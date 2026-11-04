@@ -9,13 +9,14 @@ import {
   GitPullRequestClosed,
   GitPullRequestDraft,
   LoaderCircle,
+  Pencil,
   PictureInPicture2,
   Smartphone,
   SquareKanban,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import type { MouseEvent } from "react";
+import { type MouseEvent, useRef, useState } from "react";
 import type { PullRequest, Session } from "../../../shared/types.ts";
 import { duration } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
@@ -222,6 +223,49 @@ export function RemoteButton({ s, look = "pill" }: { s: Session; look?: "pill" |
   );
 }
 
+/** Starts a rename. It renames the session's VS Code tab too, so it needs the VS Code helper. */
+export function RenameButton({ s, onClick }: { s: Session; onClick: () => void }) {
+  return (
+    <IconButton label={s.vscodeLinked ? "Rename (its VS Code tab too)" : "Rename works for sessions in VS Code terminals"} disabled={!s.vscodeLinked} onClick={onClick}>
+      <Pencil size={14} />
+    </IconButton>
+  );
+}
+
+/** A box for the session's new name: Enter saves it, on the VS Code tab too; Esc cancels. */
+export function NameEditor({ s, className, onDone }: { s: Session; className: string; onDone: () => void }) {
+  const [value, setValue] = useState(s.name);
+  const box = useRef<HTMLInputElement>(null);
+  const saving = useStore((st) => !!st.busy[`${s.pid}:rename`]);
+  const save = async () => {
+    const name = value.trim();
+    if (!name || name === s.name) return onDone();
+    if ((await act(`${s.pid}:rename`, `/api/sessions/${s.pid}/rename`, { name }, true)).ok) onDone();
+    else box.current?.focus();
+  };
+  return (
+    <input
+      ref={box}
+      className={`name-input ${className}`}
+      value={value}
+      maxLength={120}
+      readOnly={saving}
+      autoFocus
+      aria-label="New name"
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") void save();
+        else if (e.key === "Escape") onDone();
+      }}
+      onBlur={() => {
+        if (!saving) onDone();
+      }}
+    />
+  );
+}
+
 /** The plain-English task under the title; when the title already is the headline, the latest state. */
 export function taskLine(s: Session): string {
   return s.nameSource === "summary" ? (s.summary.now ?? "") : s.summary.headline;
@@ -239,6 +283,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
   const detail = settled ? ((s.nameSource !== "summary" ? s.summary.now : null) ?? a.detail) : a.detail;
   const words = lastWords(s);
   const asking = a.kind === "approval" || a.kind === "question";
+  const [renaming, setRenaming] = useState(false);
   return (
     <motion.article
       layout
@@ -253,8 +298,9 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
       <div className="mon-screen" aria-hidden />
       <header className="mon-head">
         <span className="mon-key" data-tip={index < 9 ? `Press ${index + 1} to select` : undefined}>{index + 1}</span>
-        <h3 className="mon-title">{s.name}</h3>
+        {renaming ? <NameEditor s={s} className="mon-title" onDone={() => setRenaming(false)} /> : <h3 className="mon-title">{s.name}</h3>}
         <div className="mon-actions">
+          <RenameButton s={s} onClick={() => setRenaming(true)} />
           <IconButton label="Open in VS Code" onClick={() => void act(`${s.pid}:focus`, `/api/sessions/${s.pid}/focus`, {}, true)}>
             <CodeXml size={15} />
           </IconButton>

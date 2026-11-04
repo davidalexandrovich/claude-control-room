@@ -15,8 +15,9 @@ import { bridgeIdOf, remoteUrl } from "./remote.ts";
 import { findStoryId, shortcutReady, story as storyFor } from "./shortcut.ts";
 import { defaultEffort, latestUsage, readPermission, readTap, statusLineState } from "./statusline.ts";
 import { maybeSummarize, storedSummary } from "./summaries.ts";
+import { pickName, tabName } from "./names.ts";
 import { modelName, readTranscript, type TranscriptState } from "./transcript.ts";
-import { bridgeConnected, helperInstalled, windowFor } from "./vscode.ts";
+import { bridgeConnected, helperState, terminalName, windowFor } from "./vscode.ts";
 
 export interface SessionFile extends StatusFile {
   pid: number;
@@ -190,7 +191,7 @@ export class Monitor {
       setup: {
         statusLine: connection.statusLine,
         hooks: connection.hooks,
-        vscodeHelper: windows > 0 ? "connected" : helperInstalled() ? "installed" : "missing",
+        vscodeHelper: helperState(),
         vscodeWindows: windows,
         ghReady: ghReady(),
         shortcutReady: shortcutReady(),
@@ -214,6 +215,8 @@ export class Monitor {
     if (t) this.transcripts.set(f.pid, t);
     const cwd = tap?.cwd ?? t?.cwd ?? f.cwd;
     const git = await gitInfo(cwd, f.status === "busy" ? 4_000 : 15_000);
+    const shellPid = proc?.ppid ?? 0;
+    const tab = tabName(terminalName(shellPid));
 
     let pr = null;
     if (git?.remote) {
@@ -230,6 +233,7 @@ export class Monitor {
     const storyId = findStoryId([
       git?.branch,
       ...claims.map((c) => c.note),
+      tab,
       t?.agentName,
       t?.aiTitle,
       t?.firstPrompt,
@@ -243,22 +247,19 @@ export class Monitor {
     const activity = deriveActivity(f, t, now, cfg.inactiveAfterMinutes * 60_000, ask);
     const title = t?.agentName ?? tap?.sessionName ?? t?.aiTitle ?? null;
     const branch = git?.branch && !["main", "master"].includes(git.branch) ? git.branch : null;
-    const [name, nameSource]: [string, Session["nameSource"]] = t?.agentName
-      ? [t.agentName, "custom"]
-      : title
-        ? [title, "title"]
-        : story
-          ? [story.name, "story"]
-          : branch
-            ? [branch, "branch"]
-            : [basename(cwd), "folder"];
 
     const fallback = fallbackSummary({ story: story?.name ?? null, note: claims[0]?.note ?? null, title, firstPrompt: t?.firstPrompt ?? null });
     const ai = cfg.aiSummaries ? await storedSummary(f.sessionId) : null;
     const summary = ai ?? fallback;
-    // A branch or folder name says little; the plain-English headline is the better title then.
-    const [shownName, shownSource]: [string, Session["nameSource"]] =
-      (nameSource === "branch" || nameSource === "folder") && ai ? [ai.headline, "summary"] : [name, nameSource];
+    const [name, nameSource] = pickName({
+      tab,
+      custom: t?.agentName ?? null,
+      title,
+      story: story?.name ?? null,
+      headline: ai?.headline ?? null,
+      branch,
+      folder: basename(cwd),
+    });
 
     const prev = this.prevStatus.get(f.sessionId);
     this.prevStatus.set(f.sessionId, activity.kind);
@@ -296,13 +297,12 @@ export class Monitor {
 
     const chat: ChatLine[] = t ? t.chat.slice(-PREVIEW_LINES) : [];
     const effort = tap?.effort ?? ask?.effort ?? t?.effort ?? this.effortDefault;
-    const shellPid = proc?.ppid ?? 0;
     return {
       pid: f.pid,
       shellPid,
       sessionId: f.sessionId,
-      name: shownName,
-      nameSource: shownSource,
+      name,
+      nameSource,
       shortName: f.name ?? basename(cwd),
       cwd,
       startedAt: f.startedAt,
