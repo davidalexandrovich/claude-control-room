@@ -105,7 +105,7 @@ It works while Claude is busy too. Only a session that is asking you something m
 A tile has the same name as the session's VS Code terminal tab.
 Rename the tab in VS Code, and the tile follows within two seconds.
 
-To rename from Control Room, click ✏️ on the tile, or next to the name in the details. Type the new name and press Enter.
+To rename from Control Room, click ✏️ on the tile, or next to the name in the details. Type the new name and press Enter, or click elsewhere.
 The VS Code tab gets the new name too. Esc cancels.
 A session in another terminal, like PyCharm's, keeps the name in Control Room only. Its terminal tab does not change.
 That name wins over `/rename`. To go back to the automatic name, rename it to nothing: clear the box and press Enter.
@@ -250,7 +250,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 | Put the wall on another screen | Click **Wall on…** in the panel, or **Wall on display** in the dashboard. |
 | Watch one session on its own | Click the pop-out button on its tile. |
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
-| Rename a session | Click ✏️ on its tile or in its details, type the name, press Enter. Its VS Code tab gets the name too. |
+| Rename a session | Click ✏️ on its tile or in its details, type the name, press Enter or click elsewhere. Its VS Code tab gets the name too. |
 | Move the icon | Hold ⌘ and drag the icon along the menu bar. |
 | Quit | Right-click the icon and choose **Quit**. |
 

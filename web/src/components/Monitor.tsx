@@ -240,16 +240,24 @@ export function RenameButton({ s, onClick }: { s: Session; onClick: () => void }
   );
 }
 
-/** A box for the session's new name: Enter saves it, on its VS Code tab too when it has one; Esc cancels. Saving an empty box drops a name saved in Control Room. */
+/**
+ * A box for the session's new name: Enter or a click elsewhere saves it, on its VS Code tab too when it has one; Esc
+ * cancels. Saving an empty box drops a name saved in Control Room.
+ */
 export function NameEditor({ s, className, onDone }: { s: Session; className: string; onDone: () => void }) {
   const [value, setValue] = useState(s.name);
   const box = useRef<HTMLInputElement>(null);
+  // Enter, Esc and the blur that follows them all end the edit; only the first one counts.
+  const ended = useRef(false);
   const saving = useStore((st) => !!st.busy[`${s.pid}:rename`]);
-  const save = async () => {
+  const finish = async (keep: boolean) => {
+    if (ended.current) return;
+    ended.current = true;
     const name = value.trim();
-    if (name === s.name || (!name && s.nameSource !== "saved")) return onDone();
-    if ((await act(`${s.pid}:rename`, `/api/sessions/${s.pid}/rename`, { name }, true)).ok) onDone();
-    else box.current?.focus();
+    if (!keep || name === s.name || (!name && s.nameSource !== "saved")) return onDone();
+    if ((await act(`${s.pid}:rename`, `/api/sessions/${s.pid}/rename`, { name }, true)).ok) return onDone();
+    ended.current = false;
+    box.current?.focus();
   };
   return (
     <input
@@ -265,12 +273,10 @@ export function NameEditor({ s, className, onDone }: { s: Session; className: st
       onChange={(e) => setValue(e.target.value)}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
-        if (e.key === "Enter") void save();
-        else if (e.key === "Escape") onDone();
+        if (e.key === "Enter") void finish(true);
+        else if (e.key === "Escape") void finish(false);
       }}
-      onBlur={() => {
-        if (!saving) onDone();
-      }}
+      onBlur={() => void finish(true)}
     />
   );
 }
