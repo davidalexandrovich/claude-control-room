@@ -472,7 +472,7 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       message: null,
       restarts: true,
     },
-    setup: { statusLine: "installed", hooks: true, vscodeHelper: "connected", vscodeWindows: 3, ides: ["vscode", "cursor", "pycharm"], tmuxReady: true, ghReady: true, shortcutReady: true },
+    setup: { statusLine: "installed", hooks: true, links: true, vscodeHelper: "connected", vscodeWindows: 3, ides: ["vscode", "cursor", "pycharm"], tmuxReady: true, ghReady: true, shortcutReady: true },
     settings: {
       notifications: true,
       sounds: true,

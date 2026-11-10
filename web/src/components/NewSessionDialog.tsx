@@ -96,7 +96,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
             <p className="dialog-sub">Answer it here. The session opens as soon as it starts.</p>
             <div className="new-console">
               <Suspense fallback={null}>
-                <Console name={waiting} autoFocus />
+                <Console name={waiting} account={account} autoFocus />
               </Suspense>
             </div>
             <div className="dialog-buttons">

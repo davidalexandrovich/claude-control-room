@@ -300,11 +300,20 @@ describe("other Claude accounts", () => {
       expect(out.ok).toBe(false);
       expect(out.message).toContain(join(broken.dir, "settings.json"));
       expect(readFileSync(join(broken.dir, "settings.json"), "utf8")).toBe("{ not json");
-      for (const dir of [join(home, ".claude"), personal.dir]) expect(await statusLineState(dir)).toEqual({ statusLine: "installed", hooks: true });
+      for (const dir of [join(home, ".claude"), personal.dir]) expect(await statusLineState(dir)).toEqual({ statusLine: "installed", hooks: true, links: true });
       // Each account's script shows that account's own status line.
       const tap = JSON.parse(readFileSync(mine, "utf8")).statusLine.command;
       expect(tap).not.toBe(JSON.parse(readFileSync(work, "utf8")).statusLine.command);
       expect(readFileSync(tap, "utf8")).toContain("echo mine");
+      // And opens its links with a script of its own, ready to run.
+      const links = JSON.parse(readFileSync(mine, "utf8")).env.BROWSER;
+      expect(links).not.toBe(JSON.parse(readFileSync(work, "utf8")).env.BROWSER);
+      execFileSync("test", ["-x", links]);
+      // Settings copied over from the work account point at its links; connecting again points them at their own.
+      write(mine, { ...JSON.parse(readFileSync(mine, "utf8")), env: { BROWSER: JSON.parse(readFileSync(work, "utf8")).env.BROWSER } });
+      expect((await statusLineState(personal.dir)).links).toBe(false);
+      await installStatusLine();
+      expect(JSON.parse(readFileSync(mine, "utf8")).env.BROWSER).toBe(links);
       await uninstallStatusLine();
       expect(JSON.parse(readFileSync(work, "utf8"))).toEqual({ theme: "dark" });
       expect(JSON.parse(readFileSync(mine, "utf8"))).toEqual({ statusLine: { type: "command", command: "echo mine" } });
@@ -322,7 +331,7 @@ describe("other Claude accounts", () => {
     await installStatusLine();
     try {
       expect(await connectLikeUsual(later)).toBe(true);
-      expect(await statusLineState(later.dir)).toEqual({ statusLine: "installed", hooks: true });
+      expect(await statusLineState(later.dir)).toEqual({ statusLine: "installed", hooks: true, links: true });
     } finally {
       await uninstallStatusLine();
     }

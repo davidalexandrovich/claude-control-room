@@ -4,9 +4,10 @@ import { existsSync } from "node:fs";
 import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Account, AccountRef } from "../shared/types.ts";
-import { claudeEnv } from "./homes.ts";
+import { chromeProfiles, profileOf } from "./chrome.ts";
+import { claudeEnv, type Home, homeDir, homes } from "./homes.ts";
 import { settings } from "./config.ts";
-import { connectLikeUsual } from "./statusline.ts";
+import { connectLikeUsual, writeLinkScript } from "./statusline.ts";
 import { APP_DIR, HOME } from "./paths.ts";
 import { launch, run, sleep } from "./proc.ts";
 
@@ -32,12 +33,28 @@ export async function readAccount(ref: AccountRef | null = null): Promise<Accoun
   } catch {
     /* keep the last known account */
   }
+  // A sign-in may have changed whose account this is, so its links follow at once.
+  await refreshLinkScript({ account: ref, dir: homeDir(ref) }, await chromeProfiles());
   return currentAccount(ref?.dir);
 }
 
 /** The usual account and every one in Settings. */
 export async function readAccounts(): Promise<void> {
   await Promise.all([readAccount(null), ...settings().accounts.map((a) => readAccount(a))]);
+}
+
+/**
+ * Points an account's link script at the Chrome profile signed in to its email. Chrome's file unread this time leaves
+ * the script as it is: a passing read error must not send every link to the default browser.
+ */
+async function refreshLinkScript(h: Home, profiles: Map<string, string> | null): Promise<void> {
+  if (!profiles) return;
+  await writeLinkScript(h, profileOf(profiles, currentAccount(h.account?.dir).email)).catch(() => {});
+}
+
+export async function refreshLinkScripts(): Promise<void> {
+  const profiles = await chromeProfiles();
+  await Promise.all(homes().map((h) => refreshLinkScript(h, profiles)));
 }
 
 /** The sign-in link, if the text holds one of claude.ai's, without what may surround it. */

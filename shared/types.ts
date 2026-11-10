@@ -185,6 +185,7 @@ export interface PowerState {
 export interface SetupState {
   statusLine: "installed" | "missing" | "foreign"; // foreign = the user has their own status line, we wrap it
   hooks: boolean; // the permission hook that tells what an approval prompt asks
+  links: boolean; // the link opener ($BROWSER), so a session's links open in its account's Chrome profile
   vscodeHelper: "connected" | "outdated" | "installed" | "missing"; // outdated = connected, but too old to rename tabs
   vscodeWindows: number;
   ides: IdeId[]; // installed on this Mac

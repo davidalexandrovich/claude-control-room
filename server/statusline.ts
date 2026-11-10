@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { chmod, copyFile, mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RateWindow, SetupState, Usage } from "../shared/types.ts";
+import { linkScript } from "./chrome.ts";
 import { type Home, homeOf, homes, settingsFile } from "./homes.ts";
 import { APP_DIR, BACKUP_DIR, CLAUDE_DIR, HOOK_DIR, HOOK_SCRIPT, TAP_DIR, TAP_SCRIPT } from "./paths.ts";
 
@@ -39,6 +41,7 @@ interface HookEntry {
 interface ClaudeSettings {
   statusLine?: { type?: string; command?: string; padding?: number; refreshInterval?: number };
   hooks?: Record<string, HookEntry[]>;
+  env?: Record<string, string>;
   effortLevel?: string;
   [key: string]: unknown;
 }
@@ -120,6 +123,39 @@ function tapPath(h: Home): string {
   return h.account ? join(APP_DIR, `statusline-tap-${homeId(h)}.sh`) : TAP_SCRIPT;
 }
 
+/** The script an account's sessions open links with, as $BROWSER: one per account, for its own Chrome profile. */
+function linkPathOf(dir: string): string {
+  return join(APP_DIR, dir === CLAUDE_DIR ? "open-link.sh" : `open-link-${createHash("sha256").update(dir).digest("hex").slice(0, 10)}.sh`);
+}
+
+export const linkPath = (h: Home) => linkPathOf(h.dir);
+
+function isLinkScript(command: string | undefined): boolean {
+  return !!command?.startsWith(join(APP_DIR, "open-link"));
+}
+
+/**
+ * The account's links go through its own script. A $BROWSER the person set themselves is theirs to keep; another
+ * account's script (a settings.json copied over from it) is not this one's, and Connect points it here.
+ */
+function linksReady(settings: ClaudeSettings, dir: string): boolean {
+  const browser = settings.env?.BROWSER;
+  return !!browser && (!isLinkScript(browser) || browser === linkPathOf(dir));
+}
+
+/** Writes the account's link script when it differs, so sessions that run already open the next link the new way. */
+export async function writeLinkScript(h: Home, profile: string | null): Promise<void> {
+  const file = linkPath(h);
+  const body = linkScript(profile);
+  if ((await readFile(file, "utf8").catch(() => null)) === body) return;
+  await mkdir(APP_DIR, { recursive: true });
+  // A session may run it this very moment: it gets the old script or the new one whole, never half of one.
+  const tmp = `${file}.tmp`;
+  await writeFile(tmp, body, { mode: 0o755 });
+  await chmod(tmp, 0o755);
+  await rename(tmp, file);
+}
+
 /** Control Room's status line, whichever account's script it runs. */
 function isTap(command: string | undefined): boolean {
   return !!command?.includes(join(APP_DIR, "statusline-tap"));
@@ -145,9 +181,10 @@ export function hookInstalled(settings: ClaudeSettings): boolean {
   return (settings.hooks?.[HOOK_EVENT] ?? []).some(isOurs);
 }
 
-/** Pure: the settings with our status line and hook added. Kept separate so the merge is tested alone. */
-export function withConnection(settings: ClaudeSettings, tap = TAP_SCRIPT): ClaudeSettings {
+/** Pure: the settings with our status line, hook and link opener added. Kept separate so the merge is tested alone. */
+export function withConnection(settings: ClaudeSettings, tap = TAP_SCRIPT, link = join(APP_DIR, "open-link.sh")): ClaudeSettings {
   const next: ClaudeSettings = { ...settings, statusLine: { type: "command", command: tap, padding: 0 } };
+  if (!settings.env?.BROWSER || isLinkScript(settings.env.BROWSER)) next.env = { ...settings.env, BROWSER: link };
   const hooks = { ...(settings.hooks ?? {}) };
   hooks[HOOK_EVENT] = [
     ...(hooks[HOOK_EVENT] ?? []).filter((e) => !isOurs(e)),
@@ -157,7 +194,7 @@ export function withConnection(settings: ClaudeSettings, tap = TAP_SCRIPT): Clau
   return next;
 }
 
-/** Pure: the settings with our status line and hook taken out, and the person's own status line back. */
+/** Pure: the settings with our status line, hook and link opener taken out, and the person's own status line back. */
 export function withoutConnection(settings: ClaudeSettings, original: ClaudeSettings["statusLine"] | null): ClaudeSettings {
   const next: ClaudeSettings = { ...settings };
   if (isTap(next.statusLine?.command)) {
@@ -172,16 +209,21 @@ export function withoutConnection(settings: ClaudeSettings, original: ClaudeSett
     if (Object.keys(hooks).length) next.hooks = hooks;
     else delete next.hooks;
   }
+  if (isLinkScript(next.env?.BROWSER)) {
+    const { BROWSER: _, ...env } = next.env!;
+    if (Object.keys(env).length) next.env = env;
+    else delete next.env;
+  }
   return next;
 }
 
-export async function statusLineState(dir = CLAUDE_DIR): Promise<{ statusLine: SetupState["statusLine"]; hooks: boolean }> {
+export async function statusLineState(dir = CLAUDE_DIR): Promise<{ statusLine: SetupState["statusLine"]; hooks: boolean; links: boolean }> {
   try {
     const s = await readSettings(dir);
     const cmd = s.statusLine?.command ?? null;
-    return { statusLine: !cmd ? "missing" : isTap(cmd) ? "installed" : "foreign", hooks: hookInstalled(s) };
+    return { statusLine: !cmd ? "missing" : isTap(cmd) ? "installed" : "foreign", hooks: hookInstalled(s), links: linksReady(s, dir) };
   } catch {
-    return { statusLine: "missing", hooks: false };
+    return { statusLine: "missing", hooks: false, links: false };
   }
 }
 
@@ -195,11 +237,13 @@ export async function defaultEffort(dir = CLAUDE_DIR): Promise<string | null> {
   }
 }
 
-/** Adds the status line and the permission hook to one account's settings.json, after a backup. */
+/** Adds the status line, the permission hook and the link opener to one account's settings.json, after a backup. */
 async function connectHome(h: Home): Promise<{ changed: boolean; backup: string | null }> {
   const before = await readSettingsOrNone(h.dir);
   const current = before.statusLine?.command ?? null;
-  if (isTap(current ?? undefined) && hookInstalled(before)) return { changed: false, backup: null };
+  if (isTap(current ?? undefined) && hookInstalled(before) && linksReady(before, h.dir)) return { changed: false, backup: null };
+  // Plain `open` until the account's Chrome profile is known; readAccounts fills it in.
+  if (!existsSync(linkPath(h))) await writeLinkScript(h, null);
   const backup = await backupSettings(h);
   if (!isTap(current ?? undefined)) {
     await writeFile(tapPath(h), tapScript(current));
@@ -207,7 +251,7 @@ async function connectHome(h: Home): Promise<{ changed: boolean; backup: string 
     await writeFile(join(BACKUP_DIR, backupName(h, "original-statusline.json")), JSON.stringify(before.statusLine ?? null) + "\n");
   }
   // Re-read right before writing so a change Claude Code just made is not lost.
-  await writeSettings(withConnection(await readSettingsOrNone(h.dir), tapPath(h)), h.dir);
+  await writeSettings(withConnection(await readSettingsOrNone(h.dir), tapPath(h), linkPath(h)), h.dir);
   return { changed: true, backup };
 }
 
@@ -225,7 +269,7 @@ export async function connectLikeUsual(h: Home): Promise<boolean> {
 export async function disconnectHome(h: Home): Promise<{ ok: boolean; message: string }> {
   try {
     const before = await readSettingsOrNone(h.dir);
-    if (!isTap(before.statusLine?.command) && !hookInstalled(before)) return { ok: true, message: "Not connected" };
+    if (!isTap(before.statusLine?.command) && !hookInstalled(before) && !isLinkScript(before.env?.BROWSER)) return { ok: true, message: "Not connected" };
     await backupSettings(h);
     let original: ClaudeSettings["statusLine"] | null = null;
     try {

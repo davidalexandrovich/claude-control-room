@@ -37,9 +37,12 @@ const FONT = { min: 9, max: 24, default: 13 };
 // A web address in plain text; the punctuation that usually ends a sentence is left out of it.
 const URL_TEXT = /https?:\/\/[^\s"'<>`]*[^\s"'<>`.,;:!?)\]}]/g;
 
-/** Opens a link in your default browser, through the app: the console's page itself never leaves the dashboard. */
-function openLink(uri: string): void {
-  if (/^https?:\/\//i.test(uri)) void api("/api/open", { url: uri }).catch(() => null);
+/**
+ * Opens a link through the app, so the console's page itself never leaves the dashboard: in the Chrome profile of the
+ * session's account when it has one, else in your default browser.
+ */
+function openLink(uri: string, from: { pid?: number; account?: string }): void {
+  if (/^https?:\/\//i.test(uri)) void api("/api/open", { url: uri, ...from }).catch(() => null);
 }
 
 function bytes(base64: string): Uint8Array {
@@ -51,6 +54,8 @@ function bytes(base64: string): Uint8Array {
 
 interface Props {
   name: string;
+  pid?: number; // the session it shows, whose account's Chrome profile its links open in
+  account?: string; // before the session has a pid: the folder of its account, "" for the usual one
   autoFocus?: boolean;
   onFocused?: () => void;
   title?: string; // the session's name, for the bar when the rest of its details are out of sight
@@ -59,7 +64,7 @@ interface Props {
   onPopOut?: () => void;
 }
 
-export default function Console({ name, autoFocus = false, onFocused, title, view = "normal", onView, onPopOut }: Props) {
+export default function Console({ name, pid, account, autoFocus = false, onFocused, title, view = "normal", onView, onPopOut }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const refit = useRef<() => void>(() => {});
@@ -93,7 +98,7 @@ export default function Console({ name, autoFocus = false, onFocused, title, vie
       scrollback: 5_000,
       theme: THEME,
       // Links Claude Code marks as links (OSC 8), such as a pull request or a file it wrote.
-      linkHandler: { activate: (_e, uri) => openLink(uri), allowNonHttpProtocols: false },
+      linkHandler: { activate: (_e, uri) => openLink(uri, { pid, account }), allowNonHttpProtocols: false },
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -116,7 +121,7 @@ export default function Console({ name, autoFocus = false, onFocused, title, vie
         const cols = term.cols;
         const at = (i: number) => ({ x: (i % cols) + 1, y: first + Math.floor(i / cols) + 1 });
         const links = [...text.matchAll(URL_TEXT)]
-          .map((m) => ({ text: m[0], range: { start: at(m.index), end: at(m.index + m[0].length - 1) }, activate: () => openLink(m[0]) }))
+          .map((m) => ({ text: m[0], range: { start: at(m.index), end: at(m.index + m[0].length - 1) }, activate: () => openLink(m[0], { pid, account }) }))
           .filter((l) => l.range.start.y <= y && y <= l.range.end.y && l.range.end.x < cols - 3);
         done(links.length ? links : undefined);
       },

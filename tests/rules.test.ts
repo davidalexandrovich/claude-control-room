@@ -15,7 +15,8 @@ import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } fro
 import { openSince, type PrRow, summarizeChecks } from "../server/github.ts";
 import { findStoryId } from "../server/shortcut.ts";
 import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../server/statusline.ts";
-import { HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
+import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
+import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -297,6 +298,51 @@ describe("Claude Code settings merge", () => {
     expect(back).toEqual(theirs);
     const bare = withoutConnection(withConnection({ model: "opus" }), null);
     expect(bare).toEqual({ model: "opus" });
+  });
+
+  it("adds our link opener as $BROWSER, and leaves one the person set alone", () => {
+    const ours = join(APP_DIR, "open-link.sh");
+    const next = withConnection({ ...theirs, env: { FOO: "1" } });
+    expect(next.env).toEqual({ FOO: "1", BROWSER: ours });
+    expect(withConnection(next, TAP_SCRIPT, join(APP_DIR, "open-link-abc.sh")).env?.BROWSER).toBe(join(APP_DIR, "open-link-abc.sh"));
+    expect(withoutConnection(next, theirs.statusLine).env).toEqual({ FOO: "1" });
+    const own = withConnection({ env: { BROWSER: "/their/browser.sh" } });
+    expect(own.env).toEqual({ BROWSER: "/their/browser.sh" });
+    expect(withoutConnection(own, null).env).toEqual({ BROWSER: "/their/browser.sh" });
+  });
+
+  it("finds the Chrome profile signed in to an email", () => {
+    const state = JSON.stringify({
+      profile: {
+        info_cache: {
+          Default: { name: "Dvir", user_name: "Me@Gmail.com" },
+          "Profile 1": { name: "Work", user_name: "" },
+          "Profile 4": { name: "Dvir SOJO", user_name: "me@work.com" },
+          "Bad'; rm -rf ~": { user_name: "evil@x.com" },
+        },
+      },
+    });
+    const map = profilesByEmail(state)!;
+    expect(profileOf(map, "me@gmail.com")).toBe("Default");
+    expect(profileOf(map, " ME@work.com")).toBe("Profile 4");
+    expect(profileOf(map, "evil@x.com")).toBeNull();
+    expect(profileOf(map, null)).toBeNull();
+    expect(map.size).toBe(2);
+    // Half written, or not Chrome's: unknown, so a script that works is left as it is.
+    expect(profilesByEmail('{"profile":')).toBeNull();
+    expect(profilesByEmail("{}")).toBeNull();
+  });
+
+  it("opens links in the account's Chrome profile, and hands a sign-in link to Control Room", () => {
+    const work = linkScript("Profile 4");
+    expect(work).toContain(`open '-na' 'Google Chrome' '--args' '--profile-directory=Profile 4' "$1" 2>/dev/null || open "$1"`);
+    expect(linkScript(null)).toMatch(/\nopen "\$1"\n$/);
+    const dir = mkdtempSync(join(tmpdir(), "cr-link-"));
+    const script = join(dir, "open-link.sh");
+    const out = join(dir, "signin.url");
+    writeFileSync(script, work);
+    execFileSync("/bin/sh", [script, "https://claude.ai/oauth/x"], { env: { ...process.env, CONTROL_ROOM_SIGNIN: out } });
+    expect(readFileSync(out, "utf8")).toBe("https://claude.ai/oauth/x\n");
   });
 
   it("keeps the person's own status line running inside ours", () => {

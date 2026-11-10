@@ -3,6 +3,7 @@ import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias, MODELS 
 import { openTarget } from "../shared/ides.ts";
 import type { ActionResult, ClosePlan, CloseRequest, Session, WorktreeReport } from "../shared/types.ts";
 import { accountByDir, homeDir } from "./homes.ts";
+import { chromeArgs, chromeProfiles, profileOf } from "./chrome.ts";
 import { endClaim, forgetClaims, repoClaims } from "./claims.ts";
 import { folderSetting, settings } from "./config.ts";
 import { git, listWorktrees } from "./git.ts";
@@ -433,9 +434,12 @@ export async function moveSession(monitor: Monitor, pid: number): Promise<Action
   }
 }
 
-export function openUrl(url: string): ActionResult {
+/** A link from a session or an account opens in the Chrome profile signed in to that account's email, as its sessions' do. */
+export async function openUrl(url: string, email: string | null = null): Promise<ActionResult> {
   // Web pages only: http too, for a dev server on this Mac. `open` would also run file: and app links.
   if (typeof url !== "string" || !/^https?:\/\/[^\s]+$/i.test(url)) return { ok: false, message: "Only web links open from here." };
+  const profile = email ? profileOf(await chromeProfiles(), email) : null;
+  if (profile && (await run("open", chromeArgs(profile, url), { timeoutMs: 10_000 })).ok) return { ok: true, message: `Opened in Chrome as ${email}` };
   launch("open", [url]);
   return { ok: true, message: "Opened" };
 }

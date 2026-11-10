@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { isIdeId } from "../shared/ides.ts";
 import type { ActionResult, CloseRequest, Settings } from "../shared/types.ts";
 import { MAX_ACCOUNTS } from "../shared/claude.ts";
-import { currentAccount, readAccount, readAccounts, startAccountSwitch } from "./account.ts";
+import { currentAccount, readAccount, readAccounts, refreshLinkScripts, startAccountSwitch } from "./account.ts";
 import { accountByDir } from "./homes.ts";
 import {
   answerPermission,
@@ -135,6 +135,17 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
     };
   };
 
+  // Whose link it is: a session's (not a plain terminal's), or an account's by its folder, "" for the usual one.
+  const linkEmail = (b: { pid?: unknown; account?: unknown }): string | null => {
+    if (typeof b.pid === "number") {
+      const s = monitor.snapshot?.sessions.find((x) => x.pid === b.pid);
+      return s && !s.terminal ? currentAccount(s.account?.dir ?? null).email : null;
+    }
+    if (b.account === "") return currentAccount(null).email;
+    const ref = accountByDir(b.account);
+    return ref ? currentAccount(ref.dir).email : null;
+  };
+
   const slugOf = (repo: string) => {
     const s = monitor.snapshot?.sessions.find((x) => x.git?.mainRoot === repo && x.git.remote);
     return s?.git?.remote ? `${s.git.remote.owner}/${s.git.remote.name}` : null;
@@ -230,8 +241,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
       case "/api/terminal":
         return send(res, 200, await startTerminal(monitor));
       case "/api/open": {
-        const b = await body<{ url?: string; folder?: string }>(req);
-        if (b.url) return send(res, 200, openUrl(b.url));
+        const b = await body<{ url?: string; folder?: string; pid?: unknown; account?: unknown }>(req);
+        if (b.url) return send(res, 200, await openUrl(b.url, linkEmail(b)));
         const known = (monitor.snapshot?.sessions ?? []).some((s) => b.folder && insidePath(b.folder, s.git?.mainRoot ?? s.cwd));
         if (b.folder && (known || existsSync(b.folder))) return send(res, 200, openFolder(b.folder));
         return send(res, 400, { ok: false, message: "Nothing to open" });
@@ -331,6 +342,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
       case "/api/setup/statusline": {
         const b = await body<{ install: boolean }>(req);
         const out = b.install ? await installStatusLine() : await uninstallStatusLine();
+        if (b.install) await refreshLinkScripts();
         await monitor.tick();
         return send(res, 200, out);
       }

@@ -235,17 +235,17 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
       )}
       {!s.terminal && <RemoteButton s={s} look="button" />}
       {s.pr && (
-        <button type="button" className="btn btn-ghost" data-tip={withKey(s.pr.title, "pr")} onClick={() => openUrl(s.pr!.url)}>
+        <button type="button" className="btn btn-ghost" data-tip={withKey(s.pr.title, "pr")} onClick={() => openUrl(s.pr!.url, { pid: s.pid })}>
           <GitPullRequest size={15} /> PR #{s.pr.number}
         </button>
       )}
       {s.story && (
-        <button type="button" className="btn btn-ghost" onClick={() => openUrl(s.story!.url)}>
+        <button type="button" className="btn btn-ghost" onClick={() => openUrl(s.story!.url, { pid: s.pid })}>
           <SquareKanban size={15} /> Story
         </button>
       )}
       {s.artifacts[0] && (
-        <button type="button" className="btn btn-ghost" data-tip={s.artifacts[0].title ?? "The page it published"} onClick={() => openUrl(s.artifacts[0].url)}>
+        <button type="button" className="btn btn-ghost" data-tip={s.artifacts[0].title ?? "The page it published"} onClick={() => openUrl(s.artifacts[0].url, { pid: s.pid })}>
           <AppWindow size={15} /> Artifact
         </button>
       )}
@@ -286,6 +286,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
               <Console
                 key={tmuxName}
                 name={tmuxName}
+                pid={s.pid}
                 autoFocus={variant === "popout" || typeInto}
                 onFocused={() => typeInto && setState({ typeInto: null })}
                 title={s.name}
@@ -322,7 +323,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
           )}
           {s.pr && (
             <Row label="Pull request">
-              <PrChip pr={s.pr} /> <span className="muted">{s.pr.title}</span>
+              <PrChip pr={s.pr} pid={s.pid} /> <span className="muted">{s.pr.title}</span>
             </Row>
           )}
           {s.storyId && (
@@ -336,7 +337,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
               {s.artifacts.map((p, i) => (
                 <span key={p.url}>
                   {i > 0 && ", "}
-                  <button type="button" className="link" onClick={() => openUrl(p.url)}>
+                  <button type="button" className="link" onClick={() => openUrl(p.url, { pid: s.pid })}>
                     {p.title ?? "Untitled"}
                   </button>
                 </span>
