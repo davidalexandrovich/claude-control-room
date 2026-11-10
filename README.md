@@ -177,6 +177,9 @@ A tab you never named shows only the program's name, like `claude`. Then the til
         <li>the model, effort, context size and cost;</li>
         <li>the live conversation.</li>
       </ul>
+      <p>The branch and changes are those of the checkout it works in. A session started in your main checkout that
+      went on to work in a worktree beside it, with <code>cd ../shield-27336</code> or edits there, shows that worktree.
+      Going back to the main checkout to run its tools doesn't count.</p>
       <p>The short summaries come from Claude Haiku, through your own <code>claude</code> command.
       They are written for people, not only for engineers.</p>
     </td>

@@ -67,6 +67,11 @@ export function insidePath(child: string, parent: string): boolean {
   return child === parent || child.startsWith(parent.endsWith("/") ? parent : `${parent}/`);
 }
 
+/** A session lives in a folder it started in, or one it went on to work in, as in `cd ../shield-27336`. */
+export function worksIn(s: { cwd: string; git: { root: string } | null }, path: string): boolean {
+  return insidePath(s.cwd, path) || (!!s.git && insidePath(s.git.root, path));
+}
+
 export async function buildReport(
   mainRoot: string,
   wt: WorktreeEntry,

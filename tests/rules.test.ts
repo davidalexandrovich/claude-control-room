@@ -1,12 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { deriveActivity, endsWithQuestion, type StatusFile } from "../server/activity.ts";
 import { accountDir, cleanAccounts, cleanSettings, folderSetting } from "../server/config.ts";
 import { homeOf, homes } from "../server/homes.ts";
-import { parseRemote, parseShortstat } from "../server/git.ts";
+import { parseRemote, parseShortstat, workingGit } from "../server/git.ts";
 import { chosenIde, ideOf, openInIde } from "../server/ide.ts";
 import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { BROWSER_BODY, signInUrl } from "../server/account.ts";
@@ -19,7 +19,7 @@ import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
-import { verdictFor, type WorktreeFacts } from "../server/worktrees.ts";
+import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
 import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { commandOf, KEY_GROUPS, KEYS, sessionKeyOf } from "../web/src/lib/keys.ts";
@@ -73,6 +73,28 @@ describe("transcript", () => {
     expect(s.workedFolders).toEqual([`${homedir()}/code/shield-26900`, "/code/shield-27100", "/code/other repo"]);
   });
 
+  it("follows the session to the folders it works in, the latest last", () => {
+    const s = emptyState("/x.jsonl");
+    const use = (name: string, input: object) =>
+      line({ type: "assistant", cwd: "/code/shield", message: { content: [{ type: "tool_use", id: JSON.stringify(input), name, input }] } });
+    applyLines(s, [
+      use("Bash", { command: "git -C ~/code/shield fetch origin main && git -C ~/code/shield worktree add -b 27336_alerts ../shield-27336 origin/main" }),
+      use("Bash", { command: "cd ~/code/shield-27100 && git status" }),
+      use("Read", { file_path: "/code/shield/.env" }),
+      use("Bash", { command: "ls -la" }),
+      use("Bash", { command: "cd ~/Library/Application\\ Support/x && ls" }),
+      use("Edit", { file_path: "/code/shield-27336/schemas/alert.py", old_string: "a", new_string: "b" }),
+    ]);
+    // A worktree is added where its path says, beside the folder after -C; reading a file is not working there.
+    expect(s.recentFolders).toEqual([
+      `${homedir()}/code/shield-27336`,
+      `${homedir()}/code/shield-27100`,
+      `${homedir()}/Library/Application Support/x`,
+      "/code/shield-27336/schemas",
+    ]);
+    expect(s.workedBranches).toEqual([]);
+  });
+
   it("finds branch work and published pages from before the stretch it reads first", async () => {
     const file = join(mkdtempSync(join(tmpdir(), "cr-tx-")), "s.jsonl");
     const chat = (i: number) => line({ type: "assistant", cwd: "/code/shield", message: { content: [{ type: "text", text: `step ${i} ${"x".repeat(30_000)}` }] } });
@@ -80,6 +102,8 @@ describe("transcript", () => {
       file,
       [
         line({ type: "user", cwd: "/code/shield", gitBranch: "26012_shared", message: { content: "<bash-input>cd ../shield-26900 && git push</bash-input>" } }),
+        line({ type: "assistant", cwd: "/code/shield", message: { content: [{ type: "tool_use", id: "c", name: "Bash", input: { command: "cd ../shield-27336 && ls" } }] } }),
+        line({ type: "assistant", cwd: "/code/shield", isSidechain: true, message: { content: [{ type: "tool_use", id: "d", name: "Bash", input: { command: "cd ../shield-99999 && ls" } }] } }),
         line({ type: "assistant", cwd: "/code/shield", gitBranch: "27001_mine", message: { content: [{ type: "tool_use", id: "a", name: "Bash", input: { command: "git commit -am fix" } }] } }),
         line({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "p", content: "Published" }] }, toolUseResult: { url: "https://claude.ai/artifact/Early1", artifact_id: "x", title: "Early page" } }),
         ...Array.from({ length: 150 }, (_, i) => chat(i)),
@@ -88,6 +112,7 @@ describe("transcript", () => {
     const s = await readTranscript(file);
     expect(s?.chat.some((c) => c.text.startsWith("! cd"))).toBe(false); // outside what it read
     expect(s?.workedFolders).toEqual(["/code/shield-26900"]);
+    expect(s?.recentFolders).toEqual(["/code/shield-27336"]); // a subagent's cd is its own
     expect(s?.workedBranches).toEqual(["27001_mine"]);
     expect(s?.artifacts).toEqual([{ url: "https://claude.ai/artifact/Early1", title: "Early page" }]);
   });
@@ -238,6 +263,48 @@ describe("status", () => {
     expect(endsWithQuestion("Want me to merge it now")).toBe(true);
     expect(endsWithQuestion("The PR is merged.")).toBe(false);
     expect(endsWithQuestion("Done. Is there anything else you'd like me to do?")).toBe(false);
+  });
+});
+
+describe("the checkout a session works in", () => {
+  const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd, stdio: "ignore" });
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "cr-wt-")));
+  const repo = join(root, "shield");
+  const other = join(root, "k8s");
+  for (const dir of [repo, other]) {
+    mkdirSync(dir);
+    sh(dir, "init", "-q", "-b", "26012_old_work");
+    sh(dir, "commit", "-q", "--allow-empty", "-m", "x");
+  }
+  sh(repo, "worktree", "add", "-q", "-b", "27336_alerts", join(root, "shield-27336"));
+  mkdirSync(join(root, "plain"));
+
+  it("is the worktree it went on to work in, not the shared checkout it started in", async () => {
+    const git = await workingGit(repo, [join(root, "shield-27336"), join(root, "plain")], 0);
+    expect(git?.branch).toBe("27336_alerts");
+    expect(git?.isWorktree).toBe(true);
+  });
+
+  it("stays in its own folder after a look into another repo or a folder that is gone", async () => {
+    expect((await workingGit(repo, [join(root, "k8s"), join(root, "shield-gone")], 0))?.branch).toBe("26012_old_work");
+    // A trip back to the main checkout, to run its tools, does not take it off its worktree.
+    expect((await workingGit(repo, [join(root, "shield-27336"), repo], 0))?.branch).toBe("27336_alerts");
+    expect((await workingGit(join(root, "shield-27336"), [repo], 0))?.branch).toBe("27336_alerts");
+    expect((await workingGit(repo, [], 0))?.root).toBe(repo);
+  });
+
+  it("counts a session as in a worktree it works in, though it started elsewhere", () => {
+    const wt = join(root, "shield-27336");
+    expect(worksIn({ cwd: repo, git: { root: wt } }, wt)).toBe(true);
+    expect(worksIn({ cwd: repo, git: { root: repo } }, wt)).toBe(false);
+    expect(worksIn({ cwd: join(wt, "server"), git: null }, wt)).toBe(true);
+  });
+
+  it("never offers to delete a worktree the session only went on to work in", async () => {
+    const { worktreeReportFor } = await import("../server/actions.ts");
+    const wt = join(root, "shield-27336");
+    const s = { pid: 1, cwd: repo, git: { root: wt, mainRoot: repo, isWorktree: true, branch: "27336_alerts", remote: null } };
+    expect(await worktreeReportFor({} as never, s as never)).toBeNull();
   });
 });
 

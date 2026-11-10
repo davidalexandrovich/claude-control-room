@@ -8,7 +8,7 @@ import { type Home, homeDir, homes, projectsDir, sessionsDir } from "./homes.ts"
 import { deriveActivity, type StatusFile } from "./activity.ts";
 import { claimsOf, repoClaims } from "./claims.ts";
 import { publicSettings, settings } from "./config.ts";
-import { gitInfo } from "./git.ts";
+import { gitInfo, workingGit } from "./git.ts";
 import { ghReady, openSince, prByNumber, prForBranch, refreshRepo } from "./github.ts";
 import { type HostedPane, hostedName, hostedPanes, isTerminalName, screenLines, tmuxReady } from "./hosted.ts";
 import { ideOf, installedIdes, noteConnectedIdes } from "./ide.ts";
@@ -283,7 +283,7 @@ export class Monitor {
     const t = path ? await readTranscript(path) : null;
     if (t) this.transcripts.set(f.pid, t);
     const cwd = tap?.cwd ?? t?.cwd ?? f.cwd;
-    const git = await gitInfo(cwd, f.status === "busy" ? 4_000 : 15_000);
+    const git = await workingGit(cwd, t?.recentFolders ?? [], f.status === "busy" ? 4_000 : 15_000);
     const shellPid = proc?.ppid ?? 0;
     const tab = tabName(terminalName(shellPid));
     const saved = await savedName(f.sessionId);
