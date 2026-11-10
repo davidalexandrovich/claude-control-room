@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import { parseRemote, parseShortstat } from "../server/git.ts";
 import { chosenIde, ideOf, openInIde } from "../server/ide.ts";
 import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { BROWSER_BODY, signInUrl } from "../server/account.ts";
-import { etimeSeconds, loginAgeFrom } from "../server/proc.ts";
+import { etimeSeconds, loginAgeFrom, loginShellPath, mergePath } from "../server/proc.ts";
 import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
 import { openSince, type PrRow, summarizeChecks } from "../server/github.ts";
 import { findStoryId } from "../server/shortcut.ts";
@@ -399,6 +399,26 @@ describe("wall layout", () => {
     const l = fitWall(40, 1200, 600, 14);
     expect(l.scroll).toBe(true);
     expect(l.tileW).toBeGreaterThanOrEqual(TILE_MIN_W);
+  });
+});
+
+describe("PATH from your login shell", () => {
+  it("puts your shell's folders first and keeps the rest once", () => {
+    expect(mergePath("/nvm/bin:/usr/bin", "/opt/homebrew/bin:/usr/bin::/bin")).toBe("/nvm/bin:/usr/bin:/opt/homebrew/bin:/bin");
+  });
+
+  it("reads PATH past what ~/.zshrc prints, and gives up on a shell that says nothing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cr-shell-"));
+    const shell = join(dir, "fake-shell");
+    // Stands in for zsh -lic: prints a greeting the way an rc file may, adds an nvm-style folder, runs the command.
+    writeFileSync(shell, '#!/bin/sh\necho "welcome back"\nPATH="/fake/nvm/bin:$PATH" exec /bin/sh -c "$2"\n');
+    chmodSync(shell, 0o755);
+    expect((await loginShellPath(shell))?.split(":")[0]).toBe("/fake/nvm/bin");
+    const mute = join(dir, "mute-shell");
+    writeFileSync(mute, "#!/bin/sh\nexit 1\n");
+    chmodSync(mute, 0o755);
+    expect(await loginShellPath(mute)).toBeNull();
+    expect(await loginShellPath(join(dir, "missing"))).toBeNull();
   });
 });
 
