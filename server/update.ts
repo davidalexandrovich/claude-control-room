@@ -81,7 +81,9 @@ async function refresh(): Promise<UpdateState> {
     return r.ok ? Number(r.stdout.trim()) || 0 : 0;
   };
   const behind = up ? await count("HEAD..@{u}") : 0;
-  const unbuilt = state.built ? await count(`${state.built}..HEAD`) : 0;
+  // A merge that brings in only what this build has already (how a pull request usually ends) leaves nothing to build.
+  const same = state.built ? (await git("diff", "--quiet", state.built, "HEAD")).ok : false;
+  const unbuilt = state.built && !same ? await count(`${state.built}..HEAD`) : 0;
   const log = await git("log", "--format=%s", "-8", behind ? "HEAD..@{u}" : `${state.built ?? "HEAD"}..HEAD`);
   state = {
     ...state,
