@@ -26,11 +26,12 @@ import { withKey } from "../lib/keys.ts";
 import { IconButton, Ring, StatusOrb, useNow } from "./Primitives.tsx";
 import { TuneChips } from "./Tuning.tsx";
 
-export function openUrl(url: string): void {
-  void api("/api/open", { url });
+/** A link from a session, or an account's ("" for the usual one), opens in the Chrome profile signed in to that account. */
+export function openUrl(url: string, from: { pid?: number; account?: string } = {}): void {
+  void api("/api/open", { url, ...from });
 }
 
-export function PrChip({ pr }: { pr: PullRequest }) {
+export function PrChip({ pr, pid }: { pr: PullRequest; pid?: number }) {
   const Icon = pr.state === "MERGED" ? GitMerge : pr.state === "CLOSED" ? GitPullRequestClosed : pr.isDraft ? GitPullRequestDraft : GitPullRequest;
   const state = pr.state === "MERGED" ? "merged" : pr.state === "CLOSED" ? "closed" : pr.isDraft ? "draft" : "open";
   const checks =
@@ -49,7 +50,7 @@ export function PrChip({ pr }: { pr: PullRequest }) {
       data-tip={withKey(`${pr.title}${review ? ` · ${review}` : ""}${pr.checks !== "none" ? ` · checks ${pr.checks}` : ""}`, "pr")}
       onClick={(e) => {
         e.stopPropagation();
-        openUrl(pr.url);
+        openUrl(pr.url, { pid });
       }}
     >
       <Icon size={13} />
@@ -81,7 +82,7 @@ function StoryChip({ s }: { s: Session }) {
       data-tip={s.story ? `${s.story.name}${s.story.state ? ` · ${s.story.state}` : ""}` : "Add a Shortcut token in Settings to see this story"}
       onClick={(e) => {
         e.stopPropagation();
-        if (s.story) openUrl(s.story.url);
+        if (s.story) openUrl(s.story.url, { pid: s.pid });
         else setState({ panel: "settings" });
       }}
     >
@@ -217,7 +218,7 @@ export function RemoteButton({ s, look = "pill" }: { s: Session; look?: "pill" |
       : withKey("Remote control: continue this session on your phone", "remote");
   const click = (e: MouseEvent) => {
     e.stopPropagation();
-    if (s.remoteUrl) openUrl(s.remoteUrl);
+    if (s.remoteUrl) openUrl(s.remoteUrl, { pid: s.pid });
     else void act(`${s.pid}:remote`, `/api/sessions/${s.pid}/remote`);
   };
   const size = look === "pill" ? 13 : look === "icon" ? 14 : 15;
@@ -354,7 +355,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
 
       <div className="mon-chips">
         <AccountChip s={s} />
-        {s.pr && <PrChip pr={s.pr} />}
+        {s.pr && <PrChip pr={s.pr} pid={s.pid} />}
         <StoryChip s={s} />
         <GitChips s={s} />
       </div>

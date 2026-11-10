@@ -25,7 +25,7 @@ export function remoteBlocked(s: Session): string | null {
 export function toPhone(s: Session): void {
   const why = remoteBlocked(s);
   if (why) return toast(why, "error");
-  if (s.remoteUrl) void api("/api/open", { url: s.remoteUrl });
+  if (s.remoteUrl) void api("/api/open", { url: s.remoteUrl, pid: s.pid });
   else void act(`${s.pid}:remote`, `/api/sessions/${s.pid}/remote`);
 }
 
@@ -134,7 +134,7 @@ export function runSessionKey(k: SessionKey, s: Session): boolean {
       return true;
     }
     case "pr":
-      if (s.pr) void api("/api/open", { url: s.pr.url });
+      if (s.pr) void api("/api/open", { url: s.pr.url, pid: s.pid });
       return !!s.pr;
     case "close":
       setState({ closing: s.pid });

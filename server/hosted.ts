@@ -42,11 +42,22 @@ export { hostedName, isHostedName, isTerminalName } from "../shared/hosted.ts";
 // The variables of whoever started Control Room (Electron, npm, or a Claude Code session) must not reach a new
 // session: a Claude Code that sees CLAUDECODE thinks it runs inside another one, and one that inherits
 // CLAUDE_CONFIG_DIR runs on whatever account that names.
-const FOREIGN = /^(CLAUDECODE|CLAUDE_CODE_.*|CLAUDE_AGENT_.*|CLAUDE_CONFIG_DIR|ELECTRON_.*|npm_.*|NODE_OPTIONS|INIT_CWD|VSCODE_.*|TERM_PROGRAM.*|TMUX|TMUX_PANE|COLUMNS|LINES)$/;
+const FOREIGN = /^(CLAUDECODE|CLAUDE_CODE_.*|CLAUDE_AGENT_.*|CLAUDE_CONFIG_DIR|CLAUDE_PID|CLAUDE_EFFORT|AI_AGENT|ELECTRON_.*|npm_.*|NODE_OPTIONS|INIT_CWD|VSCODE_.*|TERM_PROGRAM.*|TMUX|TMUX_PANE|COLUMNS|LINES)$/;
+
+// Nor the editor a Claude Code tool runs with: EDITOR=vi gives zsh its vi keys, where ⌃R searches no history, and
+// GIT_EDITOR=true makes git commit skip the message. Only when they came from one: an editor of your own stays.
+const TOOL_EDITOR = /^(EDITOR|VISUAL|GIT_EDITOR)$/;
+const fromClaudeTool = (env: NodeJS.ProcessEnv) => env.CLAUDECODE !== undefined || env.GIT_EDITOR === "true" || /^claude-code/.test(env.AI_AGENT ?? "");
+
+const unwanted = (env: NodeJS.ProcessEnv) => {
+  const tool = fromClaudeTool(env);
+  return (name: string) => FOREIGN.test(name) || (tool && TOOL_EDITOR.test(name));
+};
 
 export function sessionEnv(base: NodeJS.ProcessEnv = CHILD_ENV): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(base)) if (!FOREIGN.test(k)) env[k] = v;
+  const drop = unwanted(base);
+  for (const [k, v] of Object.entries(base)) if (!drop(k)) env[k] = v;
   env.COLORTERM = "truecolor";
   env.LANG ??= "en_US.UTF-8";
   return env;
@@ -132,6 +143,27 @@ export function newSessionArgs(name: string, o: StartOptions, shell = process.en
 async function writeConf(): Promise<void> {
   const current = await readFile(CONF, "utf8").catch(() => null);
   if (current !== CONF_TEXT) await writeFile(CONF, CONF_TEXT);
+  await cleanServerEnv();
+}
+
+/** Pure: the variables in `tmux show-environment` output that a new session must not get. */
+export function foreignNames(listing: string): string[] {
+  const env: NodeJS.ProcessEnv = {};
+  for (const line of listing.split("\n")) {
+    const at = line.indexOf("=");
+    if (at > 0) env[line.slice(0, at)] = line.slice(at + 1); // "-NAME" lines are unset already
+  }
+  return Object.keys(env).filter(unwanted(env));
+}
+
+/**
+ * A tmux server keeps the variables it started with and gives them to every session after. One started before a
+ * variable joined FOREIGN still has it, so it is taken out of the server too; no server yet is nothing to clean.
+ */
+async function cleanServerEnv(): Promise<void> {
+  const out = await tmux(["show-environment", "-g"], 2_000);
+  if (!out.ok) return;
+  for (const name of foreignNames(out.stdout)) await tmux(["set-environment", "-g", "-u", name], 2_000);
 }
 
 /**

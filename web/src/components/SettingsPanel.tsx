@@ -66,7 +66,7 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
   const cfg = snap.settings;
   const setup = snap.setup;
   const save = (patch: object) => void api("/api/settings", patch);
-  const connected = setup.statusLine === "installed" && setup.hooks && snap.otherAccounts.every((a) => a.connected);
+  const connected = setup.statusLine === "installed" && setup.hooks && setup.links && snap.otherAccounts.every((a) => a.connected);
   const close = () => setState({ panel: null });
 
   return (
@@ -152,12 +152,14 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
             title="Claude Code"
             text={
               connected
-                ? `Connected: usage limits, model, effort, context and what each approval asks reach the dashboard${snap.otherAccounts.length ? ", from every account" : ""}.`
-                : setup.statusLine === "installed" && setup.hooks
+                ? `Connected: usage limits, model, effort, context and what each approval asks reach the dashboard${snap.otherAccounts.length ? ", from every account" : ""}. Links a session opens go to the Chrome profile signed in to its account.`
+                : setup.statusLine === "installed" && setup.hooks && !setup.links
+                  ? "Connected, but links still open in your default browser. Connect again so each session's links open in its account's Chrome profile; your settings are backed up first."
+                  : setup.statusLine === "installed" && setup.hooks
                   ? "Connected, but not yet for every account. Connect again to add the new ones; their settings are backed up first."
                   : setup.statusLine === "foreign"
-                    ? "You have your own status line. Connecting keeps it showing, adds a quiet permission hook, and reads the data. Your settings are backed up first."
-                    : `Adds a small status line and a quiet background permission hook to ~/.claude/settings.json${snap.otherAccounts.length ? " and every other account's" : ""}, so usage, model, effort and each approval's details reach the dashboard. Your settings are backed up first.`
+                    ? "You have your own status line. Connecting keeps it showing, adds a quiet permission hook and a link opener, and reads the data. Your settings are backed up first."
+                    : `Adds a small status line, a quiet background permission hook and a link opener ($BROWSER) to ~/.claude/settings.json${snap.otherAccounts.length ? " and every other account's" : ""}, so usage, model, effort and each approval's details reach the dashboard, and links open in the Chrome profile of the session's account. Your settings are backed up first.`
             }
           >
             {connected ? (

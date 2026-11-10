@@ -145,6 +145,8 @@ function AttentionCard({ sessions }: { sessions: Session[] }) {
 
 function PullRequestsCard({ sessions }: { sessions: Session[] }) {
   const prs = [...new Map(sessions.filter((s) => s.pr).map((s) => [s.pr!.url, s.pr!])).values()];
+  // Each pull request opens in the Chrome profile of a session that works on it.
+  const pidOf = new Map(sessions.filter((s) => s.pr).map((s) => [s.pr!.url, s.pid]));
   const open = prs.filter((p) => p.state === "OPEN");
   const failing = open.filter((p) => p.checks === "failing").length;
   const approved = open.filter((p) => p.review === "APPROVED").length;
@@ -173,8 +175,8 @@ function PullRequestsCard({ sessions }: { sessions: Session[] }) {
       </div>
       <ul className="pr-list">
         {shown.map((p) => (
-          <li key={p.url} onClick={() => openUrl(p.url)}>
-            <PrChip pr={p} />
+          <li key={p.url} onClick={() => openUrl(p.url, { pid: pidOf.get(p.url) })}>
+            <PrChip pr={p} pid={pidOf.get(p.url)} />
             <span className="pr-title">{p.title}</span>
           </li>
         ))}
@@ -281,7 +283,7 @@ function UsageCard({ snap }: { snap: Snapshot }) {
         >
           <RefreshCw size={13} /> Switch account
         </button>
-        <button type="button" className="icon-btn" aria-label="Open claude.ai usage" data-tip="Open your usage page on claude.ai" onClick={() => openUrl("https://claude.ai/settings/usage")}>
+        <button type="button" className="icon-btn" aria-label="Open claude.ai usage" data-tip="Open your usage page on claude.ai" onClick={() => openUrl("https://claude.ai/settings/usage", { account: "" })}>
           <ArrowUpRight size={15} />
         </button>
       </div>

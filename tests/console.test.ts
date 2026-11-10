@@ -57,9 +57,23 @@ describe("hosted sessions", () => {
   });
 
   it("starts Claude Code without the variables of whoever started Control Room", () => {
-    const env = hosted.sessionEnv({ PATH: "/bin", CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ELECTRON_RUN_AS_NODE: "1", npm_lifecycle_event: "app", TMUX: "x", HOME: "/h" });
+    const env = hosted.sessionEnv({
+      PATH: "/bin",
+      CLAUDECODE: "1",
+      CLAUDE_CODE_ENTRYPOINT: "cli",
+      ELECTRON_RUN_AS_NODE: "1",
+      npm_lifecycle_event: "app",
+      TMUX: "x",
+      EDITOR: "vi",
+      GIT_EDITOR: "true",
+      HOME: "/h",
+    });
     expect(env).toMatchObject({ PATH: "/bin", HOME: "/h", COLORTERM: "truecolor", LANG: "en_US.UTF-8" });
-    for (const k of ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "ELECTRON_RUN_AS_NODE", "npm_lifecycle_event", "TMUX"]) expect(env[k]).toBeUndefined();
+    for (const k of ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "ELECTRON_RUN_AS_NODE", "npm_lifecycle_event", "TMUX", "EDITOR", "GIT_EDITOR"]) expect(env[k]).toBeUndefined();
+    // An editor of your own stays: only the one a Claude Code tool runs with is left out.
+    expect(hosted.sessionEnv({ PATH: "/bin", EDITOR: "nano", GIT_EDITOR: "code --wait" })).toMatchObject({ EDITOR: "nano", GIT_EDITOR: "code --wait" });
+    expect(hosted.foreignNames("PATH=/bin\nEDITOR=vi\nGIT_EDITOR=true\n-VISUAL\nCLAUDE_PID=7\nHOME=/h\n")).toEqual(["EDITOR", "GIT_EDITOR", "CLAUDE_PID"]);
+    expect(hosted.foreignNames("PATH=/bin\nEDITOR=nano\n")).toEqual([]);
   });
 
   it("refuses a folder that does not exist, and a resume id that is not one", async () => {
@@ -231,6 +245,29 @@ describe.skipIf(!TMUX)("console on a real tmux", () => {
     expect((await hosted.hostedPanes())!.some((p) => p.name === r.name)).toBe(false);
   });
 
+  it("gives a terminal your own keys and editor, not those the tmux server started with", async () => {
+    // A server started from a Claude Code tool keeps its EDITOR=vi, which gives zsh vi keys: ⌃R finds no history.
+    tmux("new-session", "-d", "-s", "keep", "sh", "-c", "exec cat");
+    let name: string | undefined;
+    try {
+      tmux("set-environment", "-g", "EDITOR", "vi");
+      tmux("set-environment", "-g", "GIT_EDITOR", "true");
+      const r = await hosted.startShell(home, "/bin/zsh");
+      expect(r.ok).toBe(true);
+      name = r.name;
+      expect(tmux("show-environment", "-g")).not.toMatch(/^(EDITOR|GIT_EDITOR)=/m);
+      await until(() => tmux("capture-pane", "-p", "-t", `=${name}:`).trim().length > 0);
+      consoles.typeInConsole(name!, 'echo "ed=[$EDITOR$GIT_EDITOR]"; bindkey "^R"\r');
+      await until(() => tmux("capture-pane", "-p", "-t", `=${name}:`).includes("history-incremental-search-backward"));
+      expect(tmux("capture-pane", "-p", "-t", `=${name}:`)).toContain("ed=[]");
+    } finally {
+      if (name) await consoles.stopConsole(name);
+      tmux("set-environment", "-g", "-u", "EDITOR");
+      tmux("set-environment", "-g", "-u", "GIT_EDITOR");
+      tmux("kill-session", "-t", "=keep");
+    }
+  });
+
   it("ends a console at once when its session does not exist", async () => {
     const events: string[] = [];
     consoles.watchConsole("cr-00000000", 80, 24, (e) => events.push(e.type));
@@ -300,11 +337,20 @@ describe("other Claude accounts", () => {
       expect(out.ok).toBe(false);
       expect(out.message).toContain(join(broken.dir, "settings.json"));
       expect(readFileSync(join(broken.dir, "settings.json"), "utf8")).toBe("{ not json");
-      for (const dir of [join(home, ".claude"), personal.dir]) expect(await statusLineState(dir)).toEqual({ statusLine: "installed", hooks: true });
+      for (const dir of [join(home, ".claude"), personal.dir]) expect(await statusLineState(dir)).toEqual({ statusLine: "installed", hooks: true, links: true });
       // Each account's script shows that account's own status line.
       const tap = JSON.parse(readFileSync(mine, "utf8")).statusLine.command;
       expect(tap).not.toBe(JSON.parse(readFileSync(work, "utf8")).statusLine.command);
       expect(readFileSync(tap, "utf8")).toContain("echo mine");
+      // And opens its links with a script of its own, ready to run.
+      const links = JSON.parse(readFileSync(mine, "utf8")).env.BROWSER;
+      expect(links).not.toBe(JSON.parse(readFileSync(work, "utf8")).env.BROWSER);
+      execFileSync("test", ["-x", links]);
+      // Settings copied over from the work account point at its links; connecting again points them at their own.
+      write(mine, { ...JSON.parse(readFileSync(mine, "utf8")), env: { BROWSER: JSON.parse(readFileSync(work, "utf8")).env.BROWSER } });
+      expect((await statusLineState(personal.dir)).links).toBe(false);
+      await installStatusLine();
+      expect(JSON.parse(readFileSync(mine, "utf8")).env.BROWSER).toBe(links);
       await uninstallStatusLine();
       expect(JSON.parse(readFileSync(work, "utf8"))).toEqual({ theme: "dark" });
       expect(JSON.parse(readFileSync(mine, "utf8"))).toEqual({ statusLine: { type: "command", command: "echo mine" } });
@@ -322,7 +368,7 @@ describe("other Claude accounts", () => {
     await installStatusLine();
     try {
       expect(await connectLikeUsual(later)).toBe(true);
-      expect(await statusLineState(later.dir)).toEqual({ statusLine: "installed", hooks: true });
+      expect(await statusLineState(later.dir)).toEqual({ statusLine: "installed", hooks: true, links: true });
     } finally {
       await uninstallStatusLine();
     }

@@ -106,7 +106,7 @@ function Row({ s }: { s: Session }) {
       </span>
       <span className="mb-task">{taskLine(s) || s.repoName}</span>
       <span className="mb-tools">
-        {s.pr && <PrChip pr={s.pr} />}
+        {s.pr && <PrChip pr={s.pr} pid={s.pid} />}
         <RemoteButton s={s} look="icon" />
         <button
           type="button"
@@ -148,7 +148,7 @@ function Usage({ snap }: { snap: Snapshot }) {
     <section className="mb-usage">
       <h4 className="mb-label">
         Claude usage {account.plan && <span className="plan-pill">{account.plan}</span>}
-        <button type="button" className="mb-link" onClick={() => openUrl("https://claude.ai/settings/usage")}>
+        <button type="button" className="mb-link" onClick={() => openUrl("https://claude.ai/settings/usage", { account: "" })}>
           claude.ai <ArrowUpRight size={12} />
         </button>
       </h4>

@@ -117,7 +117,7 @@ export function SetupBanner({ snap }: { snap: Snapshot }) {
   const busy = useStore((s) => s.busy);
   const [hidden, setHidden] = useState(() => sessionStorage.getItem("cr.setupHidden") === "1");
   // Each account reports only once it is connected too; one signed in later is not yet.
-  const needStatus = snap.setup.statusLine !== "installed" || !snap.setup.hooks || snap.otherAccounts.some((a) => a.loggedIn && !a.connected);
+  const needStatus = snap.setup.statusLine !== "installed" || !snap.setup.hooks || !snap.setup.links || snap.otherAccounts.some((a) => a.loggedIn && !a.connected);
   const needVscode = snap.setup.vscodeHelper === "missing" && snap.sessions.some((s) => s.ide === "vscode");
   if (hidden || VIEW.wallOnly || (!needStatus && !needVscode)) return null;
   return (
@@ -126,7 +126,7 @@ export function SetupBanner({ snap }: { snap: Snapshot }) {
       {needStatus && (
         <button type="button" className="setup-step" disabled={busy.statusline} onClick={() => void act("statusline", "/api/setup/statusline", { install: true })}>
           <b>Connect Claude Code</b>
-          <span>for usage limits, model, effort and what each approval asks</span>
+          <span>for usage limits, model, effort, what each approval asks, and links in each account's own Chrome</span>
         </button>
       )}
       {needVscode && (

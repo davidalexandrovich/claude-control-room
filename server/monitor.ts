@@ -256,6 +256,7 @@ export class Monitor {
       setup: {
         statusLine: connection.statusLine,
         hooks: connection.hooks,
+        links: connection.links,
         vscodeHelper: helperState(),
         vscodeWindows: windows,
         ides: installedIdes(),

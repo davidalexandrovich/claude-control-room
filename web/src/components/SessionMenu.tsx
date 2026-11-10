@@ -278,10 +278,10 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
             onClick={run(() => toPhone(s))}
           />
         )}
-        {s.pr && <Item icon={<GitPullRequest size={14} />} label={`Open PR #${s.pr.number}`} keys="pr" onClick={run(() => openUrl(s.pr!.url))} />}
-        {s.story && <Item icon={<SquareKanban size={14} />} label="Open story" meta={`sc-${s.storyId}`} onClick={run(() => openUrl(s.story!.url))} />}
+        {s.pr && <Item icon={<GitPullRequest size={14} />} label={`Open PR #${s.pr.number}`} keys="pr" onClick={run(() => openUrl(s.pr!.url, { pid: s.pid }))} />}
+        {s.story && <Item icon={<SquareKanban size={14} />} label="Open story" meta={`sc-${s.storyId}`} onClick={run(() => openUrl(s.story!.url, { pid: s.pid }))} />}
         {s.artifacts[0] && (
-          <Item icon={<AppWindow size={14} />} label="Open artifact" tip={s.artifacts[0].title ?? undefined} onClick={run(() => openUrl(s.artifacts[0].url))} />
+          <Item icon={<AppWindow size={14} />} label="Open artifact" tip={s.artifacts[0].title ?? undefined} onClick={run(() => openUrl(s.artifacts[0].url, { pid: s.pid }))} />
         )}
         <Item icon={<FolderOpen size={14} />} label="Show folder in Finder" keys="finder" onClick={run(() => showInFinder(s))} />
         {!s.hosted && tmuxReady && (

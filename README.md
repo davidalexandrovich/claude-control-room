@@ -148,6 +148,7 @@ The sign-in opens in a private window (Chrome, Brave, Edge or Firefox, the first
 To see one account's sessions, pick it next to the filters above the wall, or click its count in the Sessions card. **Default** is every session that is not on another account.
 Sessions you start yourself show up too: `CLAUDE_CONFIG_DIR=~/.claude-personal claude`.
 The usage card shows each account's limits, once **Connect Claude Code** has added the status line to that account as well.
+Links open in the Chrome profile signed in to the session's account: a link a personal session opens, or that you click on its tile or in its console, goes to the Chrome of your personal Google account, and a work session's to your work one. Control Room matches them by email. A session whose account has no Chrome profile with that email opens links in your default browser, as before. `open` run in a session's shell still goes to the default browser.
 **Move here**, **Copy resume command** and the model and effort switches keep each session on its own account.
 Click an account's name in Settings to rename it: call the default one "Work", say. Removing an account takes it out of Control Room only. Its folder and login stay.
 
@@ -257,7 +258,7 @@ If macOS ever blocks it, open **System Settings → Privacy & Security** and cli
 
 A banner at the top of the dashboard offers two steps:
 
-1. **Connect Claude Code.** This adds a status line and a quiet `PermissionRequest` hook to `~/.claude/settings.json`, and to the `settings.json` of each other Claude account. It saves a backup first.
+1. **Connect Claude Code.** This adds a status line, a quiet `PermissionRequest` hook and a link opener (`env.BROWSER`) to `~/.claude/settings.json`, and to the `settings.json` of each other Claude account. It saves a backup first. A `BROWSER` you set yourself stays as it is.
    With them, the dashboard knows your usage limits, the model, the effort, and what each approval asks.
    The status line also shows `model · effort · context · 5h · week` in your terminal.
    **Settings → Claude Code → Disconnect** removes both and gives your old status line back.
@@ -313,7 +314,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
 | Start a session and type to it | Click **New session**, pick a folder, click **Start session**. Type in its console. |
 | Use a second Claude account | Add it in **Settings → Claude accounts** and sign in. Then pick it under **Account** in **New session**. |
-| Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. |
+| Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. A terminal gets your own editor and keys, even when Control Room was started from a Claude Code session. |
 | See the changes of a session started here | Click **Open in …** in its details, or right-click it. Its folder opens in the IDE from Settings. |
 | Stop using a terminal for a session | Open its details and click **Move here**, once it is idle. |
 | Change a session's model, effort or mode | Click it in the tile's footer and pick another, or right-click the tile. |
