@@ -29,7 +29,7 @@ export interface NameParts {
   saved: string | null; // given in Control Room to a session without a VS Code tab
   custom: string | null; // set with /rename in Claude Code
   title: string | null; // Claude Code's own title for the session
-  story: string | null;
+  story: string | null; // "<story id>-<short title>" of its Shortcut story
   headline: string | null; // the plain-English summary, when there is one
   branch: string | null;
   folder: string;
@@ -43,10 +43,11 @@ export function pickName(p: NameParts): [string, Session["nameSource"]] {
   if (p.tab) return [p.tab, "tab"];
   if (p.saved) return [p.saved, "saved"];
   if (p.custom) return [p.custom, "custom"];
+  // Claude Code's own title only retells the request ("Shortcut story 27336 subscribed alert"); the story says what
+  // the work is. Before its first prompt, though, a session is about nothing yet: its branch's story is other work.
+  if (p.story && p.prompted) return [p.story, "story"];
   if (p.title) return [p.title, "title"];
-  // Before its first prompt a session is about nothing yet: its folder's branch or story would name other work.
   if (!p.prompted) return [NEW_NAME, "new"];
-  if (p.story) return [p.story, "story"];
   // A branch or folder name says little; the plain-English headline is the better name then.
   if (p.headline) return [p.headline, "summary"];
   if (p.branch) return [p.branch, "branch"];

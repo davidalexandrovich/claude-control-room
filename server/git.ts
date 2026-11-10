@@ -29,6 +29,23 @@ export async function gitInfo(cwd: string, maxAgeMs: number): Promise<GitInfo | 
   return value;
 }
 
+/**
+ * The checkout a session works in: the last of `folders` that is another worktree of its own folder's repo, else its
+ * own folder's. One started in ~/code/shield that went on to `cd ../shield-27336` is on that worktree's branch. A
+ * folder of another repo, or none, is a look elsewhere (an edit under ~/.claude, say), and a trip back to the main
+ * checkout (`cd ~/code/shield && .venv/bin/pytest`) borrows its tools: neither is where it works.
+ */
+export async function workingGit(cwd: string, folders: string[], maxAgeMs: number): Promise<GitInfo | null> {
+  const own = await gitInfo(cwd, maxAgeMs);
+  for (const dir of [...folders].reverse()) {
+    // Which checkout a folder is in seldom changes, so the folders passed over are read once a minute at most.
+    const there = await gitInfo(dir, Math.max(maxAgeMs, 60_000));
+    if (!there) continue;
+    if (!own || (there.mainRoot === own.mainRoot && there.root !== own.mainRoot && there.root !== own.root)) return gitInfo(dir, maxAgeMs);
+  }
+  return own;
+}
+
 async function readGit(cwd: string): Promise<GitInfo | null> {
   const top = await git(cwd, ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"]);
   if (!top.ok) return null;

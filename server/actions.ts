@@ -19,7 +19,7 @@ import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
 import { place } from "./order.ts";
 import { keepDefaults, readTap, type Tap } from "./statusline.ts";
 import { closeTerminal, focusTerminal, renameTerminal, sendText } from "./vscode.ts";
-import { buildReport, insidePath } from "./worktrees.ts";
+import { buildReport, insidePath, worksIn } from "./worktrees.ts";
 
 const KEYS = { enter: "\r", escape: "\u001b" } as const;
 
@@ -461,7 +461,8 @@ export async function startTerminal(monitor: Monitor): Promise<ActionResult & { 
 }
 
 export async function worktreeReportFor(monitor: Monitor, s: Session): Promise<WorktreeReport | null> {
-  if (!s.git || !s.git.isWorktree) return null;
+  // Only the worktree it started in: one it went on to work in (`cd ../shield-27336`) may hold others' work too.
+  if (!s.git || !s.git.isWorktree || !insidePath(s.cwd, s.git.root)) return null;
   const entries = await listWorktrees(s.git.mainRoot);
   const entry = entries.find((e) => e.path === s.git?.root);
   if (!entry) return null;
@@ -471,7 +472,7 @@ export async function worktreeReportFor(monitor: Monitor, s: Session): Promise<W
   if (pr && entry.branch) prs.set(entry.branch, pr);
   const reg = await repoClaims(s.git.mainRoot, monitor.isLiveClaude);
   const others = (path: string) =>
-    (monitor.snapshot?.sessions ?? []).filter((o) => o.pid !== s.pid && insidePath(o.cwd, path)).map((o) => o.pid);
+    (monitor.snapshot?.sessions ?? []).filter((o) => o.pid !== s.pid && worksIn(o, path)).map((o) => o.pid);
   return buildReport(s.git.mainRoot, entry, {
     prs,
     livePids: others,
@@ -543,7 +544,7 @@ export async function closeSession(monitor: Monitor, pid: number, req: CloseRequ
   }
 
   const reg = s.git ? await repoClaims(s.git.mainRoot, monitor.isLiveClaude) : null;
-  const worktree = s.git?.isWorktree ? s.git.root : null;
+  const worktree = s.git?.isWorktree && insidePath(s.cwd, s.git.root) ? s.git.root : null;
   const held = new Set(s.claims.map((c) => c.worktree));
   if (reg) {
     for (const w of held) {

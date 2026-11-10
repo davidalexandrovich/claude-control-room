@@ -73,6 +73,7 @@ export interface PullRequest {
 export interface Story {
   id: number;
   name: string;
+  epic: string | null; // the name of its epic
   state: string | null;
   url: string;
   type: string | null;

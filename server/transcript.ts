@@ -1,5 +1,5 @@
 import { open, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import type { ArtifactLink, ChatLine, QuestionPreview, ToolPreview } from "../shared/types.ts";
 import { HOME } from "./paths.ts";
 
@@ -26,6 +26,7 @@ export interface TranscriptState {
   worktreeBranch: string | null;
   workedBranches: string[]; // branches this session made, committed to, pushed or opened a PR from
   workedFolders: string[]; // other folders it did that in, as in `cd ../repo-2 && git push`
+  recentFolders: string[]; // folders it went to, edited in or added as a worktree, the latest last
   cwd: string | null;
   branch: string | null;
   model: string | null; // raw model id, e.g. "claude-opus-5-5"
@@ -60,6 +61,7 @@ export function emptyState(path: string): TranscriptState {
     worktreeBranch: null,
     workedBranches: [],
     workedFolders: [],
+    recentFolders: [],
     cwd: null,
     branch: null,
     model: null,
@@ -159,7 +161,7 @@ async function lastPromptBefore(path: string, end: number): Promise<number | nul
   return null;
 }
 
-/** Notes the branch work in bytes 0 to `end`. Only a line with a commit, push or new branch in it is parsed. */
+/** Notes the branch work and folders in bytes 0 to `end`. Only a line with a commit, push, new branch, edit or cd is parsed. */
 async function branchWorkBefore(state: TranscriptState, end: number): Promise<void> {
   let carry = Buffer.alloc(0); // the start of a line whose end is in the next chunk
   for (let from = 0; from < end; from += CHUNK) {
@@ -171,14 +173,19 @@ async function branchWorkBefore(state: TranscriptState, end: number): Promise<vo
         const e = parse(raw);
         if (e?.type === "user" && !e.isSidechain) noteArtifact(state, e.toolUseResult);
       }
-      if (!(raw.includes("<bash-input>") || raw.includes('"name":"Bash"')) || !(BRANCH_WORK.test(raw) || raw.search(BRANCH_MADE) >= 0)) continue;
+      const shell = raw.includes("<bash-input>") || raw.includes('"name":"Bash"');
+      const branchy = shell && (BRANCH_WORK.test(raw) || raw.search(BRANCH_MADE) >= 0);
+      const moved = (shell && FOLDER_HINT.test(raw)) || EDIT_HINT.test(raw);
+      if (!branchy && !moved) continue;
       const e = parse(raw);
-      if (!e || e.isMeta) continue;
+      if (!e || e.isMeta || e.isSidechain) continue;
       const said = e.type === "user" ? userText(e) : null;
       if (said?.startsWith("! ")) noteBranchWork(state, said.slice(2), e.gitBranch, e.cwd);
       if (e.type !== "assistant" || !Array.isArray(e.message?.content)) continue;
       for (const block of e.message.content) {
-        if (block?.type === "tool_use" && block.name === "Bash" && typeof block.input?.command === "string") noteBranchWork(state, block.input.command, e.gitBranch, e.cwd);
+        if (block?.type !== "tool_use") continue;
+        if (block.name === "Bash" && typeof block.input?.command === "string") noteBranchWork(state, block.input.command, e.gitBranch, e.cwd);
+        noteFolder(state, { id: "", name: String(block.name ?? ""), input: block.input ?? {}, at: null }, e.cwd);
       }
     }
   }
@@ -310,7 +317,7 @@ function readCommandOutput(state: TranscriptState, content: string): void {
 const BRANCH_MADE = /\bgit\s+(?:checkout\s+-[bB]|switch\s+(?:-[cC]|--create|--force-create))\s+([^\s;&|]+)/g;
 const BRANCH_WORK = /\bgit\s+(?:-C\s+(?:"[^"]+"|'[^']+'|\S+)\s+)?(?:commit|push)\b|\bgh\s+pr\s+create\b/;
 // The transcript names the branch of the session's own folder; a command that goes elsewhere first works there.
-const ELSEWHERE = /(?:^|[;&|]\s*)cd\s+("[^"]+"|'[^']+'|[^\s;&|]+)|\bgit\s+-C\s+("[^"]+"|'[^']+'|[^\s;&|]+)/;
+const ELSEWHERE = /(?:^|[;&|]\s*)cd\s+("[^"]+"|'[^']+'|(?:\\.|[^\s;&|\\])+)|\bgit\s+-C\s+("[^"]+"|'[^']+'|(?:\\.|[^\s;&|\\])+)/;
 
 /** Notes the branches a shell command worked on, from Claude or typed after `!`. */
 function noteBranchWork(state: TranscriptState, command: string, branch: unknown, cwd: unknown): void {
@@ -318,7 +325,7 @@ function noteBranchWork(state: TranscriptState, command: string, branch: unknown
   if (!made.length && !BRANCH_WORK.test(command)) return;
   const away = ELSEWHERE.exec(command);
   if (away) {
-    const dir = (away[1] ?? away[2]).replace(/^(["'])(.*)\1$/, "$2").replace(/^~(?=$|\/)/, HOME);
+    const dir = unquote(away[1] ?? away[2]);
     const folder = resolve(typeof cwd === "string" ? cwd : (state.cwd ?? HOME), dir);
     state.workedFolders = [...state.workedFolders.filter((x) => x !== folder), folder].slice(-5);
     return;
@@ -327,6 +334,37 @@ function noteBranchWork(state: TranscriptState, command: string, branch: unknown
   for (const b of worked) {
     state.workedBranches = [...state.workedBranches.filter((x) => x !== b), b].slice(-20);
   }
+}
+
+const WORKTREE_ADD = /\bgit\s+(?:-C\s+("[^"]+"|'[^']+'|(?:\\.|[^\s;&|\\])+)\s+)?worktree\s+add\s+(?:(?:-[bB]\s+[^\s;&|]+|-\S+)\s+)*("[^"]+"|'[^']+'|(?:\\.|[^\s;&|\\])+)/;
+// What a raw line holds before it is worth parsing for a folder.
+const FOLDER_HINT = /\bcd\s|\bgit\s+-C\s|\bworktree\s+add\b/;
+const EDIT_HINT = /"name":"(?:Edit|MultiEdit|Write|NotebookEdit)"/;
+
+/** A shell word as a path: quotes and backslashes dropped, ~ for home. */
+function unquote(word: string): string {
+  const bare = /^(["'])(.*)\1$/.exec(word)?.[2] ?? word.replace(/\\(.)/g, "$1");
+  return bare.replace(/^~(?=$|\/)/, HOME);
+}
+
+/**
+ * Notes the folder a tool call worked in. A session that starts in a shared checkout often works in a worktree
+ * beside it, by `cd ../shield-27336 && …` or edits there; its own folder never changes, since Claude Code goes back.
+ */
+function noteFolder(state: TranscriptState, use: ToolUse, cwd: unknown): void {
+  const base = typeof cwd === "string" ? cwd : (state.cwd ?? HOME);
+  const path = (raw: string, from = base) => resolve(from, unquote(raw));
+  let folder: string | null = null;
+  const file = use.input.file_path ?? use.input.notebook_path;
+  if (["Edit", "MultiEdit", "Write", "NotebookEdit"].includes(use.name) && typeof file === "string" && isAbsolute(file)) folder = dirname(file);
+  else if (use.name === "Bash" && typeof use.input.command === "string") {
+    const added = WORKTREE_ADD.exec(use.input.command);
+    const away = ELSEWHERE.exec(use.input.command);
+    if (added) folder = path(added[2], added[1] ? path(added[1]) : base);
+    else if (away) folder = path(away[1] ?? away[2]);
+  }
+  // Room for scratchpads and memory folders, which are no checkout, without losing the worktree before them.
+  if (folder) state.recentFolders = [...state.recentFolders.filter((x) => x !== folder), folder].slice(-10);
 }
 
 const ARTIFACT_URL = /^https:\/\/claude\.ai\/(?:code\/)?artifact\/[\w-]+$/;
@@ -382,6 +420,7 @@ function applyAssistant(state: TranscriptState, e: Entry): void {
       const use: ToolUse = { id: block.id, name: String(block.name ?? "tool"), input: block.input ?? {}, at: e.timestamp ?? null };
       state.pending.push(use);
       if (use.name === "Bash" && typeof use.input.command === "string") noteBranchWork(state, use.input.command, e.gitBranch, e.cwd);
+      noteFolder(state, use, e.cwd);
       const p = describeTool(use.name, use.input);
       state.chat.push({ role: "tool", text: p.detail ? `${p.action}: ${p.detail}` : p.action, at: use.at });
     }

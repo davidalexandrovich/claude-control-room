@@ -177,6 +177,9 @@ A tab you never named shows only the program's name, like `claude`. Then the til
         <li>the model, effort, context size and cost;</li>
         <li>the live conversation.</li>
       </ul>
+      <p>The branch and changes are those of the checkout it works in. A session started in your main checkout that
+      went on to work in a worktree beside it, with <code>cd ../shield-27336</code> or edits there, shows that worktree.
+      Going back to the main checkout to run its tools doesn't count.</p>
       <p>The short summaries come from Claude Haiku, through your own <code>claude</code> command.
       They are written for people, not only for engineers.</p>
     </td>
@@ -395,9 +398,11 @@ First it clears anything you typed there but did not send. Press `Ctrl+Y` in tha
 Then it types `/remote-control` and presses Enter.
 
 A tile's name comes from the first of these that it has:
-the name you gave its VS Code tab, the name you gave it in Control Room, the name from `/rename`, Claude Code's own title, the Shortcut story,
+the name you gave its VS Code tab, the name you gave it in Control Room, the name from `/rename`, the Shortcut story, Claude Code's own title,
 the plain-English summary, the branch, and last the folder.
-Until its first prompt a session is called **New session**, unless it has one of the first four: the branch it starts on is about earlier work.
+A story names it `<story id>-<short title>`, such as `27336-Logistics Truck Alerts`. With AI summaries on, Haiku writes the short title once
+per story, after its epic, so the sessions of one epic read alike. Otherwise the story's own name stands in.
+Until its first prompt a session is called **New session**, unless it has a name you gave it or Claude Code's own title: the branch it starts on, and that branch's story, are about earlier work.
 **Rename** asks the VS Code helper to rename the tab, the same as **Rename** in VS Code. It types nothing into the session.
 For a session outside VS Code, the name goes to `~/.claude-control-room/names.json`, by session id.
 

@@ -426,3 +426,33 @@ describe("account links", () => {
     }
   });
 });
+
+describe("ticket names", () => {
+  it("names a story's session after haiku's short title, and keeps it on disk", async () => {
+    const { CHILD_ENV, sleep } = await import("../server/proc.ts");
+    const { ticketName } = await import("../server/summaries.ts");
+    const bin = mkdtempSync(join(tmpdir(), "cr-bin-"));
+    const calls = join(bin, "calls");
+    writeFileSync(join(bin, "claude"), `#!/bin/sh\ncat >> "${calls}"\necho '{"is_error":false,"result":"{\\"title\\": \\"Logistics Truck Alerts\\"}"}'\n`, { mode: 0o755 });
+    const story = { id: 27336, name: "1d | Truck alerts - BE: opt-in (recipients)", epic: "Logistics · Truck alerts (late, arrived)", state: null, url: "", type: null, owners: [] };
+    const path = CHILD_ENV.PATH;
+    try {
+      CHILD_ENV.PATH = `${bin}:/usr/bin:/bin`;
+      // AI summaries off: the story's own name, and haiku is never asked.
+      expect(await ticketName({ ...story, id: 1 }, null)).toBe("1-Truck alerts - BE: opt-in");
+      expect(existsSync(calls)).toBe(false);
+      expect(await ticketName(story, { account: null })).toBe("27336-Truck alerts - BE: opt-in");
+      let name = "";
+      for (let i = 0; i < 50 && !name.endsWith("Alerts"); i++) {
+        await sleep(100);
+        name = await ticketName(story, { account: null });
+      }
+      expect(name).toBe("27336-Logistics Truck Alerts");
+      expect(readFileSync(calls, "utf8")).toContain("Epic: Logistics · Truck alerts (late, arrived)");
+      expect(JSON.parse(readFileSync(join(home, ".claude-control-room", "ticket-titles.json"), "utf8"))["27336"].title).toBe("Logistics Truck Alerts");
+      expect(readFileSync(calls, "utf8").split("Story:").length - 1).toBe(1);
+    } finally {
+      CHILD_ENV.PATH = path;
+    }
+  });
+});

@@ -45,7 +45,7 @@ import { useLoginShellPath } from "./proc.ts";
 import { forgetStories, testToken } from "./shortcut.ts";
 import { connectLikeUsual, disconnectHome, installStatusLine, uninstallStatusLine } from "./statusline.ts";
 import { installHelper, openStream, resolveResult, updateWindow } from "./vscode.ts";
-import { buildReport, insidePath, prsByBranch, scanRepo, type ScanJob } from "./worktrees.ts";
+import { buildReport, insidePath, prsByBranch, scanRepo, worksIn, type ScanJob } from "./worktrees.ts";
 
 export { loginAgeSeconds } from "./proc.ts";
 
@@ -126,7 +126,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
     return repo && known.has(repo) ? repo : null;
   };
 
-  const livePidsIn = (path: string) => (monitor.snapshot?.sessions ?? []).filter((s) => insidePath(s.cwd, path)).map((s) => s.pid);
+  const livePidsIn = (path: string) => (monitor.snapshot?.sessions ?? []).filter((s) => worksIn(s, path)).map((s) => s.pid);
 
   const claimLookup = async (repo: string) => {
     const reg = await repoClaims(repo, monitor.isLiveClaude);

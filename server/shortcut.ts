@@ -26,6 +26,7 @@ interface TokenMeta {
 
 const stories = new Map<number, { at: number; story: Story | null; loading: boolean }>();
 const metas = new Map<string, TokenMeta>();
+const epics = new Map<number, { name: string | null; at: number }>();
 let lastOk = false;
 
 export function shortcutReady(): boolean {
@@ -54,6 +55,14 @@ async function meta(token: string): Promise<TokenMeta> {
   return value;
 }
 
+async function epicName(token: string, id: number): Promise<string | null> {
+  const hit = epics.get(id);
+  if (hit && Date.now() - hit.at < 3_600_000) return hit.name;
+  const name = ((await call(token, `/epics/${id}`).catch(() => null))?.name as string | undefined) ?? null;
+  epics.set(id, { name, at: Date.now() });
+  return name;
+}
+
 async function load(id: number): Promise<Story | null> {
   for (const token of settings().shortcutTokens) {
     try {
@@ -67,6 +76,7 @@ async function load(id: number): Promise<Story | null> {
         url: raw.app_url ?? `https://app.shortcut.com/story/${id}`,
         type: raw.story_type ?? null,
         owners: (raw.owner_ids ?? []).map((o: string) => m.members.get(o)).filter(Boolean),
+        epic: typeof raw.epic_id === "number" ? await epicName(token, raw.epic_id) : null,
       };
     } catch (err) {
       const status = (err as { status?: number }).status;
@@ -96,6 +106,7 @@ export function story(id: number | null): Story | null {
 export function forgetStories(): void {
   stories.clear();
   metas.clear();
+  epics.clear();
 }
 
 export async function testToken(token: string): Promise<{ ok: boolean; message: string }> {

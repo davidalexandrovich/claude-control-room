@@ -406,7 +406,7 @@ function sessionOf(s: Seed, now: number): Session {
     chat,
     git,
     pr: prOf(s, now),
-    story: s.story ? { ...s.story, url: `https://app.shortcut.com/acme/story/${s.story.id}`, type: "feature", owners: ["you"] } : null,
+    story: s.story ? { ...s.story, url: `https://app.shortcut.com/acme/story/${s.story.id}`, type: "feature", owners: ["you"], epic: null } : null,
     storyId: s.story?.id ?? null,
     artifacts: s.artifact ? [{ url: "https://claude.ai/artifact/CheckoutRuns50", title: s.artifact }] : [],
     claims,
