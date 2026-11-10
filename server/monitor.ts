@@ -344,6 +344,7 @@ export class Monitor {
       headline: ai?.headline ?? null,
       branch,
       folder: basename(cwd),
+      prompted: Boolean(t?.firstPrompt),
     });
 
     const prev = this.prevStatus.get(f.sessionId);

@@ -48,7 +48,8 @@ export async function readAccounts(): Promise<void> {
  * the script as it is: a passing read error must not send every link to the default browser.
  */
 async function refreshLinkScript(h: Home, profiles: Map<string, string> | null): Promise<void> {
-  if (!profiles) return;
+  // Nor does an account not read yet (claude not found, say): unknown is not the same as no profile of its own.
+  if (!profiles || !accounts.has(h.account?.dir ?? "")) return;
   await writeLinkScript(h, profileOf(profiles, currentAccount(h.account?.dir).email)).catch(() => {});
 }
 

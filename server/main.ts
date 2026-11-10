@@ -41,6 +41,7 @@ import { Monitor } from "./monitor.ts";
 import { noteUsed } from "./order.ts";
 import { APP_DIR, BRIDGE_FILE, TAP_DIR } from "./paths.ts";
 import { readPower, setSleepDisabled, sudoersLine } from "./power.ts";
+import { useLoginShellPath } from "./proc.ts";
 import { forgetStories, testToken } from "./shortcut.ts";
 import { connectLikeUsual, disconnectHome, installStatusLine, uninstallStatusLine } from "./statusline.ts";
 import { installHelper, openStream, resolveResult, updateWindow } from "./vscode.ts";
@@ -445,7 +446,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
   }
   await writeFile(BRIDGE_FILE, JSON.stringify({ port, pid: process.pid, startedAt: Date.now() }) + "\n");
 
-  await cleanOldTaps();
+  await Promise.all([cleanOldTaps(), useLoginShellPath()]);
   await Promise.all([readPower(), checkGh(), readAccounts()]);
   await monitor.tick();
   const timers = [

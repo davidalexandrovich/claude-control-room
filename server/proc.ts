@@ -14,6 +14,27 @@ export const CHILD_ENV: NodeJS.ProcessEnv = {
   PATH: [...EXTRA_PATH, process.env.PATH ?? "/usr/bin:/bin:/usr/sbin:/sbin"].join(":"),
 };
 
+/** Pure: the folders of `first`, then those of `rest` it lacks, as one PATH. */
+export function mergePath(first: string, rest: string): string {
+  return [...new Set([...first.split(":"), ...rest.split(":")].filter(Boolean))].join(":");
+}
+
+const PATH_MARK = "__control_room_path__";
+
+/** The PATH your login shell sets up. nvm, asdf, Volta and the like add to it in ~/.zshrc, which Finder never runs. */
+export async function loginShellPath(shell = process.env.SHELL || "/bin/zsh"): Promise<string | null> {
+  // A mark, since ~/.zshrc may print its own lines; no stdin, so a prompt in it can't hold the shell open.
+  const r = await run(shell, ["-lic", `printf '\\n${PATH_MARK}%s\\n' "$PATH"`], { timeoutMs: 10_000, input: "" });
+  const line = r.stdout.split("\n").find((l) => l.startsWith(PATH_MARK));
+  return line ? line.slice(PATH_MARK.length) || null : null;
+}
+
+/** Once at startup, so `claude` (an npm install under nvm, say) is found where your terminal finds it. */
+export async function useLoginShellPath(): Promise<void> {
+  const path = await loginShellPath();
+  if (path) CHILD_ENV.PATH = mergePath(path, CHILD_ENV.PATH ?? "");
+}
+
 export function run(
   cmd: string,
   args: string[],

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import { parseRemote, parseShortstat } from "../server/git.ts";
 import { chosenIde, ideOf, openInIde } from "../server/ide.ts";
 import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { BROWSER_BODY, signInUrl } from "../server/account.ts";
-import { etimeSeconds, loginAgeFrom } from "../server/proc.ts";
+import { etimeSeconds, loginAgeFrom, loginShellPath, mergePath } from "../server/proc.ts";
 import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
 import { openSince, type PrRow, summarizeChecks } from "../server/github.ts";
 import { findStoryId } from "../server/shortcut.ts";
@@ -402,6 +402,26 @@ describe("wall layout", () => {
   });
 });
 
+describe("PATH from your login shell", () => {
+  it("puts your shell's folders first and keeps the rest once", () => {
+    expect(mergePath("/nvm/bin:/usr/bin", "/opt/homebrew/bin:/usr/bin::/bin")).toBe("/nvm/bin:/usr/bin:/opt/homebrew/bin:/bin");
+  });
+
+  it("reads PATH past what ~/.zshrc prints, and gives up on a shell that says nothing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cr-shell-"));
+    const shell = join(dir, "fake-shell");
+    // Stands in for zsh -lic: prints a greeting the way an rc file may, adds an nvm-style folder, runs the command.
+    writeFileSync(shell, '#!/bin/sh\necho "welcome back"\nPATH="/fake/nvm/bin:$PATH" exec /bin/sh -c "$2"\n');
+    chmodSync(shell, 0o755);
+    expect((await loginShellPath(shell))?.split(":")[0]).toBe("/fake/nvm/bin");
+    const mute = join(dir, "mute-shell");
+    writeFileSync(mute, "#!/bin/sh\nexit 1\n");
+    chmodSync(mute, 0o755);
+    expect(await loginShellPath(mute)).toBeNull();
+    expect(await loginShellPath(join(dir, "missing"))).toBeNull();
+  });
+});
+
 describe("start at login", () => {
   it("reads ps elapsed times", () => {
     expect(etimeSeconds("05:09")).toBe(309);
@@ -462,7 +482,7 @@ describe("session names", () => {
   });
 
   it("puts the tab's name first, then a name saved here, then the names Claude Code knows", () => {
-    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo" };
+    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo", prompted: true };
     expect(pickName(parts)).toEqual(["Dark mode 2", "tab"]);
     expect(pickName({ ...parts, tab: null })).toEqual(["Dark mode, saved", "saved"]);
     parts.saved = null;
@@ -472,7 +492,16 @@ describe("session names", () => {
     // A branch or folder name says little, so the plain-English headline goes before it.
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
-    expect(pickName({ tab: null, saved: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
+    expect(pickName({ tab: null, saved: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo", prompted: true })).toEqual(["repo", "folder"]);
+  });
+
+  it("calls a session New session until its first prompt, not after the branch it starts on", () => {
+    const fresh: NameParts = { tab: null, saved: null, custom: null, title: null, story: "Already in NetSuite", headline: null, branch: "26012_already_in_netsuite", folder: "shield", prompted: false };
+    expect(pickName(fresh)).toEqual(["New session", "new"]);
+    // A name somebody gave it still counts: claude --name, /rename, a tab, a saved name.
+    expect(pickName({ ...fresh, title: "Login fix" })).toEqual(["Login fix", "title"]);
+    expect(pickName({ ...fresh, saved: "Mine" })).toEqual(["Mine", "saved"]);
+    expect(pickName({ ...fresh, prompted: true })).toEqual(["Already in NetSuite", "story"]);
   });
 });
 

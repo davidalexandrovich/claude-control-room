@@ -393,3 +393,36 @@ describe("other Claude accounts", () => {
     }
   });
 });
+
+describe("account links", () => {
+  it("keeps an account's Chrome profile when claude can't be run, and follows it once it can", async () => {
+    const { CHILD_ENV } = await import("../server/proc.ts");
+    const { readAccount } = await import("../server/account.ts");
+    const { linkPath } = await import("../server/statusline.ts");
+    const chrome = join(home, "Library", "Application Support", "Google", "Chrome");
+    mkdirSync(chrome, { recursive: true });
+    writeFileSync(join(chrome, "Local State"), JSON.stringify({ profile: { info_cache: { "Profile 4": { user_name: "Me@Work.com" } } } }));
+    const ref = { label: "Links", dir: join(home, ".claude-links") };
+    const script = linkPath({ account: ref, dir: ref.dir });
+    mkdirSync(join(home, ".claude-control-room"), { recursive: true });
+    writeFileSync(script, "#!/bin/sh\nopen '-na' 'Google Chrome' '--args' '--profile-directory=Profile 4' \"$1\"\n");
+    const bin = mkdtempSync(join(tmpdir(), "cr-bin-"));
+    const path = CHILD_ENV.PATH;
+    try {
+      // The app started from Finder with no claude on its PATH: the account is unknown, not one without a profile.
+      CHILD_ENV.PATH = "/usr/bin:/bin";
+      expect((await readAccount(ref)).email).toBeNull();
+      expect(readFileSync(script, "utf8")).toContain("--profile-directory=Profile 4");
+      writeFileSync(join(bin, "claude"), `#!/bin/sh\necho '{"loggedIn":true,"email":"me@work.com"}'\n`, { mode: 0o755 });
+      CHILD_ENV.PATH = `${bin}:/usr/bin:/bin`;
+      expect((await readAccount(ref)).email).toBe("me@work.com");
+      expect(readFileSync(script, "utf8")).toContain("'--profile-directory=Profile 4' \"$1\"");
+      // Signed in to an account with no Chrome profile of its own: its links go to the default browser.
+      writeFileSync(join(bin, "claude"), `#!/bin/sh\necho '{"loggedIn":true,"email":"other@home.com"}'\n`, { mode: 0o755 });
+      await readAccount(ref);
+      expect(readFileSync(script, "utf8")).not.toContain("--profile-directory");
+    } finally {
+      CHILD_ENV.PATH = path;
+    }
+  });
+});

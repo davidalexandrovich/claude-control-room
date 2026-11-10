@@ -33,7 +33,10 @@ export interface NameParts {
   headline: string | null; // the plain-English summary, when there is one
   branch: string | null;
   folder: string;
+  prompted: boolean; // it has had a first prompt
 }
+
+export const NEW_NAME = "New session";
 
 /** The session's name and where it came from, in the order the README gives. */
 export function pickName(p: NameParts): [string, Session["nameSource"]] {
@@ -41,6 +44,8 @@ export function pickName(p: NameParts): [string, Session["nameSource"]] {
   if (p.saved) return [p.saved, "saved"];
   if (p.custom) return [p.custom, "custom"];
   if (p.title) return [p.title, "title"];
+  // Before its first prompt a session is about nothing yet: its folder's branch or story would name other work.
+  if (!p.prompted) return [NEW_NAME, "new"];
   if (p.story) return [p.story, "story"];
   // A branch or folder name says little; the plain-English headline is the better name then.
   if (p.headline) return [p.headline, "summary"];
