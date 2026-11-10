@@ -397,6 +397,7 @@ Then it types `/remote-control` and presses Enter.
 A tile's name comes from the first of these that it has:
 the name you gave its VS Code tab, the name you gave it in Control Room, the name from `/rename`, Claude Code's own title, the Shortcut story,
 the plain-English summary, the branch, and last the folder.
+Until its first prompt a session is called **New session**, unless it has one of the first four: the branch it starts on is about earlier work.
 **Rename** asks the VS Code helper to rename the tab, the same as **Rename** in VS Code. It types nothing into the session.
 For a session outside VS Code, the name goes to `~/.claude-control-room/names.json`, by session id.
 

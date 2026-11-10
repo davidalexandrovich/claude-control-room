@@ -482,7 +482,7 @@ describe("session names", () => {
   });
 
   it("puts the tab's name first, then a name saved here, then the names Claude Code knows", () => {
-    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo" };
+    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo", prompted: true };
     expect(pickName(parts)).toEqual(["Dark mode 2", "tab"]);
     expect(pickName({ ...parts, tab: null })).toEqual(["Dark mode, saved", "saved"]);
     parts.saved = null;
@@ -492,7 +492,16 @@ describe("session names", () => {
     // A branch or folder name says little, so the plain-English headline goes before it.
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
-    expect(pickName({ tab: null, saved: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo" })).toEqual(["repo", "folder"]);
+    expect(pickName({ tab: null, saved: null, custom: null, title: null, story: null, headline: null, branch: null, folder: "repo", prompted: true })).toEqual(["repo", "folder"]);
+  });
+
+  it("calls a session New session until its first prompt, not after the branch it starts on", () => {
+    const fresh: NameParts = { tab: null, saved: null, custom: null, title: null, story: "Already in NetSuite", headline: null, branch: "26012_already_in_netsuite", folder: "shield", prompted: false };
+    expect(pickName(fresh)).toEqual(["New session", "new"]);
+    // A name somebody gave it still counts: claude --name, /rename, a tab, a saved name.
+    expect(pickName({ ...fresh, title: "Login fix" })).toEqual(["Login fix", "title"]);
+    expect(pickName({ ...fresh, saved: "Mine" })).toEqual(["Mine", "saved"]);
+    expect(pickName({ ...fresh, prompted: true })).toEqual(["Already in NetSuite", "story"]);
   });
 });
 

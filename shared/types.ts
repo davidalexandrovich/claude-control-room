@@ -113,7 +113,7 @@ export interface Session {
   shellPid: number; // the terminal shell that runs claude
   sessionId: string;
   name: string; // best display title: the VS Code tab's name when it has one
-  nameSource: "tab" | "saved" | "custom" | "title" | "story" | "summary" | "branch" | "folder";
+  nameSource: "tab" | "saved" | "custom" | "title" | "new" | "story" | "summary" | "branch" | "folder";
   shortName: string; // Claude's derived name, e.g. "storefront-9a"
   cwd: string;
   startedAt: number;
