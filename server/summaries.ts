@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AccountRef, Story, Summary } from "../shared/types.ts";
@@ -161,11 +162,15 @@ async function summarize(input: SummaryInput): Promise<void> {
 // of one epic read alike: "27336-Logistics Truck Alerts". Haiku writes it once per story; it is kept on disk.
 const TICKET_SYSTEM = `You name Shortcut tickets for a dashboard tile.
 Given a story and its epic, write a short title of 2 to 4 words in Title Case.
-Name the product area and feature of the epic, like "Logistics Truck Alerts" for the epic
-"Logistics · Truck alerts (late, arrived, picked up, end-of-day summary)".
-When there is no epic, or it is a catch-all like "Bug pile", name the story instead.
+Name the epic, not the story: its product area and feature, never what this one story adds,
+so every story of one epic gets the same title. Example:
+Story: 1d | Truck alerts - BE: opt-in (recipients, subscribe/unsubscribe)
+Epic: Logistics · Truck alerts (late, arrived, picked up, end-of-day summary)
+Title: Logistics Truck Alerts
+When there is no epic, or it is a catch-all like "Bug pile", name the story instead, and leave the epic's name out.
 Leave out sizes like "1d", team tags like BE or FE, ticket numbers and filler words.
 Reply with JSON only: {"title": "..."}`;
+const TICKET_PROMPT_ID = createHash("sha256").update(TICKET_SYSTEM).digest("hex").slice(0, 8);
 
 /** Pure: the story's own name without its size ("1d |") or what is in brackets, for when there is no short title. */
 export function plainTicketTitle(name: string): string {
@@ -193,7 +198,7 @@ export function parseTicketTitle(text: string): string | null {
 }
 
 interface TicketTitle {
-  basis: string; // the story and epic names it was written from; a rename asks again
+  basis: string; // the prompt, story and epic it was written from; a change to any of them asks again
   title: string;
 }
 
@@ -227,7 +232,7 @@ async function writeTicketTitle(story: Story, basis: string, account: AccountRef
 
 /** "<story id>-<short title>". Without AI summaries, or until haiku answers, the story's own name stands in. */
 export async function ticketName(story: Story, ai: { account: AccountRef | null } | null): Promise<string> {
-  const basis = `${story.name}\n${story.epic ?? ""}`;
+  const basis = `${TICKET_PROMPT_ID}\n${story.name}\n${story.epic ?? ""}`;
   const known = (await ticketTitles()).get(String(story.id));
   if (known?.basis !== basis && ai && Date.now() - (askedAt.get(story.id) ?? 0) > 10 * 60_000) {
     askedAt.set(story.id, Date.now());
