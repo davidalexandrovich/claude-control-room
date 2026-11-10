@@ -57,9 +57,23 @@ describe("hosted sessions", () => {
   });
 
   it("starts Claude Code without the variables of whoever started Control Room", () => {
-    const env = hosted.sessionEnv({ PATH: "/bin", CLAUDECODE: "1", CLAUDE_CODE_ENTRYPOINT: "cli", ELECTRON_RUN_AS_NODE: "1", npm_lifecycle_event: "app", TMUX: "x", HOME: "/h" });
+    const env = hosted.sessionEnv({
+      PATH: "/bin",
+      CLAUDECODE: "1",
+      CLAUDE_CODE_ENTRYPOINT: "cli",
+      ELECTRON_RUN_AS_NODE: "1",
+      npm_lifecycle_event: "app",
+      TMUX: "x",
+      EDITOR: "vi",
+      GIT_EDITOR: "true",
+      HOME: "/h",
+    });
     expect(env).toMatchObject({ PATH: "/bin", HOME: "/h", COLORTERM: "truecolor", LANG: "en_US.UTF-8" });
-    for (const k of ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "ELECTRON_RUN_AS_NODE", "npm_lifecycle_event", "TMUX"]) expect(env[k]).toBeUndefined();
+    for (const k of ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "ELECTRON_RUN_AS_NODE", "npm_lifecycle_event", "TMUX", "EDITOR", "GIT_EDITOR"]) expect(env[k]).toBeUndefined();
+    // An editor of your own stays: only the one a Claude Code tool runs with is left out.
+    expect(hosted.sessionEnv({ PATH: "/bin", EDITOR: "nano", GIT_EDITOR: "code --wait" })).toMatchObject({ EDITOR: "nano", GIT_EDITOR: "code --wait" });
+    expect(hosted.foreignNames("PATH=/bin\nEDITOR=vi\nGIT_EDITOR=true\n-VISUAL\nCLAUDE_PID=7\nHOME=/h\n")).toEqual(["EDITOR", "GIT_EDITOR", "CLAUDE_PID"]);
+    expect(hosted.foreignNames("PATH=/bin\nEDITOR=nano\n")).toEqual([]);
   });
 
   it("refuses a folder that does not exist, and a resume id that is not one", async () => {
@@ -229,6 +243,29 @@ describe.skipIf(!TMUX)("console on a real tmux", () => {
 
     expect(await consoles.stopConsole(r.name!)).toBe(true);
     expect((await hosted.hostedPanes())!.some((p) => p.name === r.name)).toBe(false);
+  });
+
+  it("gives a terminal your own keys and editor, not those the tmux server started with", async () => {
+    // A server started from a Claude Code tool keeps its EDITOR=vi, which gives zsh vi keys: ⌃R finds no history.
+    tmux("new-session", "-d", "-s", "keep", "sh", "-c", "exec cat");
+    let name: string | undefined;
+    try {
+      tmux("set-environment", "-g", "EDITOR", "vi");
+      tmux("set-environment", "-g", "GIT_EDITOR", "true");
+      const r = await hosted.startShell(home, "/bin/zsh");
+      expect(r.ok).toBe(true);
+      name = r.name;
+      expect(tmux("show-environment", "-g")).not.toMatch(/^(EDITOR|GIT_EDITOR)=/m);
+      await until(() => tmux("capture-pane", "-p", "-t", `=${name}:`).trim().length > 0);
+      consoles.typeInConsole(name!, 'echo "ed=[$EDITOR$GIT_EDITOR]"; bindkey "^R"\r');
+      await until(() => tmux("capture-pane", "-p", "-t", `=${name}:`).includes("history-incremental-search-backward"));
+      expect(tmux("capture-pane", "-p", "-t", `=${name}:`)).toContain("ed=[]");
+    } finally {
+      if (name) await consoles.stopConsole(name);
+      tmux("set-environment", "-g", "-u", "EDITOR");
+      tmux("set-environment", "-g", "-u", "GIT_EDITOR");
+      tmux("kill-session", "-t", "=keep");
+    }
   });
 
   it("ends a console at once when its session does not exist", async () => {

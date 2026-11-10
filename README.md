@@ -314,7 +314,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
 | Start a session and type to it | Click **New session**, pick a folder, click **Start session**. Type in its console. |
 | Use a second Claude account | Add it in **Settings → Claude accounts** and sign in. Then pick it under **Account** in **New session**. |
-| Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. |
+| Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. A terminal gets your own editor and keys, even when Control Room was started from a Claude Code session. |
 | See the changes of a session started here | Click **Open in …** in its details, or right-click it. Its folder opens in the IDE from Settings. |
 | Stop using a terminal for a session | Open its details and click **Move here**, once it is idle. |
 | Change a session's model, effort or mode | Click it in the tile's footer and pick another, or right-click the tile. |
