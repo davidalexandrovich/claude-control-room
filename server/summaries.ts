@@ -1,8 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AccountRef, Summary } from "../shared/types.ts";
+import type { AccountRef, Story, Summary } from "../shared/types.ts";
 import { claudeEnv } from "./homes.ts";
-import { SUMMARIZER_CWD, SUMMARY_DIR } from "./paths.ts";
+import { APP_DIR, SUMMARIZER_CWD, SUMMARY_DIR, TICKET_TITLES_FILE } from "./paths.ts";
 import { run } from "./proc.ts";
 
 const SYSTEM = `You write status notes about one AI coding session for a dashboard.
@@ -117,7 +117,8 @@ function pump(): void {
   }
 }
 
-async function summarize(input: SummaryInput): Promise<void> {
+/** One question to haiku, without tools, settings or MCP servers, on the given account: its reply, or null. */
+async function askHaiku(system: string, input: string, account: AccountRef | null): Promise<string | null> {
   await mkdir(SUMMARIZER_CWD, { recursive: true });
   const out = await run(
     "claude",
@@ -134,20 +135,103 @@ async function summarize(input: SummaryInput): Promise<void> {
       "--setting-sources",
       "",
       "--system-prompt",
-      SYSTEM,
+      system,
     ],
-    { cwd: SUMMARIZER_CWD, timeoutMs: 90_000, input: buildPrompt(input), env: claudeEnv(input.account) },
+    { cwd: SUMMARIZER_CWD, timeoutMs: 90_000, input, env: claudeEnv(account) },
   );
-  let parsed: { headline: string; now: string | null } | null = null;
   try {
     const envelope = JSON.parse(out.stdout);
-    if (!envelope.is_error && typeof envelope.result === "string") parsed = parseSummary(envelope.result);
+    return !envelope.is_error && typeof envelope.result === "string" ? envelope.result : null;
   } catch {
-    parsed = null;
+    return null;
   }
+}
+
+async function summarize(input: SummaryInput): Promise<void> {
+  const reply = await askHaiku(SYSTEM, buildPrompt(input), input.account);
+  const parsed = reply ? parseSummary(reply) : null;
   if (!parsed) return;
   const stored: Stored = { ...parsed, at: Date.now(), basisAt: input.basisAt, status: input.status };
   cache.set(input.sessionId, stored);
   await mkdir(SUMMARY_DIR, { recursive: true });
   await writeFile(join(SUMMARY_DIR, `${input.sessionId}.json`), JSON.stringify(stored) + "\n");
+}
+
+// A session on a Shortcut story is named "<story id>-<short title>", the short title after its epic, so the sessions
+// of one epic read alike: "27336-Logistics Truck Alerts". Haiku writes it once per story; it is kept on disk.
+const TICKET_SYSTEM = `You name Shortcut tickets for a dashboard tile.
+Given a story and its epic, write a short title of 2 to 4 words in Title Case.
+Name the product area and feature of the epic, like "Logistics Truck Alerts" for the epic
+"Logistics · Truck alerts (late, arrived, picked up, end-of-day summary)".
+When there is no epic, or it is a catch-all like "Bug pile", name the story instead.
+Leave out sizes like "1d", team tags like BE or FE, ticket numbers and filler words.
+Reply with JSON only: {"title": "..."}`;
+
+/** Pure: the story's own name without its size ("1d |") or what is in brackets, for when there is no short title. */
+export function plainTicketTitle(name: string): string {
+  const plain = name
+    .replace(/^\s*\d+(\.\d+)?\s*[a-z]{0,2}\s*\|\s*/i, "")
+    .replace(/\s*[([][^)\]]*[)\]]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[\s.,:;·|-]+$/, "")
+    .trim();
+  return plain || name.trim();
+}
+
+/** Pure: the short title in haiku's reply, or null when it is missing or no short title. */
+export function parseTicketTitle(text: string): string | null {
+  const m = /\{[\s\S]*\}/.exec(text);
+  if (!m) return null;
+  try {
+    const raw = JSON.parse(m[0]).title;
+    if (typeof raw !== "string") return null;
+    const title = raw.replace(/\s+/g, " ").trim().replace(/\.$/, "");
+    return title && title.length <= 60 && title.split(" ").length <= 6 ? title : null;
+  } catch {
+    return null;
+  }
+}
+
+interface TicketTitle {
+  basis: string; // the story and epic names it was written from; a rename asks again
+  title: string;
+}
+
+let titles: Promise<Map<string, TicketTitle>> | null = null;
+let savingTitles: Promise<void> = Promise.resolve();
+const askedAt = new Map<number, number>(); // so a story haiku can't name is not asked again on every tick
+
+function ticketTitles(): Promise<Map<string, TicketTitle>> {
+  titles ??= readFile(TICKET_TITLES_FILE, "utf8").then(
+    (text) => new Map(Object.entries(JSON.parse(text) as Record<string, TicketTitle>)),
+    () => new Map(),
+  );
+  return titles;
+}
+
+async function writeTicketTitle(story: Story, basis: string, account: AccountRef | null): Promise<void> {
+  const reply = await askHaiku(TICKET_SYSTEM, `Story: ${story.name}\nEpic: ${story.epic ?? "none"}`, account);
+  const title = reply ? parseTicketTitle(reply) : null;
+  if (!title) return;
+  const all = await ticketTitles();
+  all.set(String(story.id), { basis, title });
+  const save = async () => {
+    await mkdir(APP_DIR, { recursive: true });
+    const tmp = `${TICKET_TITLES_FILE}.tmp`;
+    await writeFile(tmp, JSON.stringify(Object.fromEntries(all), null, 2) + "\n");
+    await rename(tmp, TICKET_TITLES_FILE);
+  };
+  savingTitles = savingTitles.then(save, save);
+  await savingTitles;
+}
+
+/** "<story id>-<short title>". Without AI summaries, or until haiku answers, the story's own name stands in. */
+export async function ticketName(story: Story, ai: { account: AccountRef | null } | null): Promise<string> {
+  const basis = `${story.name}\n${story.epic ?? ""}`;
+  const known = (await ticketTitles()).get(String(story.id));
+  if (known?.basis !== basis && ai && Date.now() - (askedAt.get(story.id) ?? 0) > 10 * 60_000) {
+    askedAt.set(story.id, Date.now());
+    void writeTicketTitle(story, basis, ai.account).catch(() => {});
+  }
+  return `${story.id}-${known?.title ?? plainTicketTitle(story.name)}`;
 }

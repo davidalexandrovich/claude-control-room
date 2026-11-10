@@ -17,6 +17,7 @@ import { findStoryId } from "../server/shortcut.ts";
 import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../server/statusline.ts";
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
+import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -481,14 +482,15 @@ describe("session names", () => {
     for (const raw of ["", " \n ", null, 7, {}]) expect(cleanName(raw)).toBeNull();
   });
 
-  it("puts the tab's name first, then a name saved here, then the names Claude Code knows", () => {
-    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Dark theme for Settings", story: "Dark mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo", prompted: true };
+  it("puts the tab's name first, then a name saved here, then /rename, the story, and Claude Code's own title", () => {
+    const parts: NameParts = { tab: "Dark mode 2", saved: "Dark mode, saved", custom: "Settings | P6", title: "Shortcut story 1 dark mode", story: "1-Settings Dark Mode", headline: "Adding a dark theme", branch: "sc-1-dark-mode", folder: "repo", prompted: true };
     expect(pickName(parts)).toEqual(["Dark mode 2", "tab"]);
     expect(pickName({ ...parts, tab: null })).toEqual(["Dark mode, saved", "saved"]);
     parts.saved = null;
     expect(pickName({ ...parts, tab: null })).toEqual(["Settings | P6", "custom"]);
-    expect(pickName({ ...parts, tab: null, custom: null })).toEqual(["Dark theme for Settings", "title"]);
-    expect(pickName({ ...parts, tab: null, custom: null, title: null })).toEqual(["Dark mode", "story"]);
+    // Claude Code's title only retells the request; the story says what the work is.
+    expect(pickName({ ...parts, tab: null, custom: null })).toEqual(["1-Settings Dark Mode", "story"]);
+    expect(pickName({ ...parts, tab: null, custom: null, story: null })).toEqual(["Shortcut story 1 dark mode", "title"]);
     // A branch or folder name says little, so the plain-English headline goes before it.
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null })).toEqual(["Adding a dark theme", "summary"]);
     expect(pickName({ ...parts, tab: null, custom: null, title: null, story: null, headline: null })).toEqual(["sc-1-dark-mode", "branch"]);
@@ -502,6 +504,19 @@ describe("session names", () => {
     expect(pickName({ ...fresh, title: "Login fix" })).toEqual(["Login fix", "title"]);
     expect(pickName({ ...fresh, saved: "Mine" })).toEqual(["Mine", "saved"]);
     expect(pickName({ ...fresh, prompted: true })).toEqual(["Already in NetSuite", "story"]);
+  });
+
+  it("gives a story's sessions a short title, the story's own name until there is one", () => {
+    expect(plainTicketTitle("1d | Truck alerts - BE: opt-in (recipients, subscribe/unsubscribe)")).toBe("Truck alerts - BE: opt-in");
+    expect(plainTicketTitle("0.5d | Fix [urgent] login")).toBe("Fix login");
+    expect(plainTicketTitle("Upload updates")).toBe("Upload updates");
+    expect(plainTicketTitle("(draft)")).toBe("(draft)");
+    expect(parseTicketTitle('{"title": "Logistics Truck Alerts."}')).toBe("Logistics Truck Alerts");
+    expect(parseTicketTitle('Sure: {"title":"Hold Deep Links"}')).toBe("Hold Deep Links");
+    // Talk instead of a title, or one far too long, is no short title.
+    for (const reply of ["Epic is a catch-all, so I'm naming the story instead.", '{"title": "A title that goes on and on for many more words"}', '{"title": ""}', "{"]) {
+      expect(parseTicketTitle(reply)).toBeNull();
+    }
   });
 });
 

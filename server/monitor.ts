@@ -18,7 +18,7 @@ import { basename, isClaudeComm, processTable, sleep, type ProcRow } from "./pro
 import { bridgeIdOf, remoteUrl } from "./remote.ts";
 import { findStoryId, shortcutReady, story as storyFor } from "./shortcut.ts";
 import { defaultEffort, latestUsages, readPermission, readTap, statusLineState } from "./statusline.ts";
-import { maybeSummarize, storedSummary } from "./summaries.ts";
+import { maybeSummarize, storedSummary, ticketName } from "./summaries.ts";
 import { sortKey, usedAt } from "./order.ts";
 import { updateState } from "./update.ts";
 import { pickName, savedName, tabName } from "./names.ts";
@@ -335,12 +335,15 @@ export class Monitor {
     const fallback = fallbackSummary({ story: story?.name ?? null, note: claims[0]?.note ?? null, title, firstPrompt: t?.firstPrompt ?? null });
     const ai = cfg.aiSummaries ? await storedSummary(f.sessionId) : null;
     const summary = ai ?? fallback;
+    // Only a story the session started on or is named after names it; one mentioned later in the chat may be a side note.
+    const named = story && findStoryId([git?.branch, ...claims.map((c) => c.note), tab, saved, t?.agentName, t?.aiTitle, t?.firstPrompt]) === story.id;
+    const ticket = named ? await ticketName(story, cfg.aiSummaries ? { account: f.account } : null) : null;
     const [name, nameSource] = pickName({
       tab,
       saved,
       custom: t?.agentName ?? null,
       title,
-      story: story?.name ?? null,
+      story: ticket,
       headline: ai?.headline ?? null,
       branch,
       folder: basename(cwd),
