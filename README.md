@@ -102,7 +102,7 @@ Right before it presses a key, Control Room checks the session again, so an old 
 
 ### Start and type here
 
-Click **New session** at the top, or press `N`. Pick a folder, add a first message if you like, and click **Start session**.
+Click **New session** at the top, or press `N`. Pick a folder, add a first message if you like, and press `Enter` or click **Start session**. `Shift+Enter` adds a line to the message.
 Claude Code starts in Control Room, and its details open with a live console.
 The console is the session's real terminal: type messages, slash commands, `Esc`, `Ctrl+C`, arrows, and paste, as in any terminal tab.
 `Shift+Enter` starts a new line in your message.

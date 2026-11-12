@@ -62,8 +62,16 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     if (path) setCwd(path);
   };
 
+  const canStart = !!cwd.trim() && !starting && snap.setup.tmuxReady;
+  // Enter starts it, as in Claude Code; Shift+Enter is a new line. Not while an input method still composes a word.
+  const enterStarts = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    void start();
+  };
+
   const start = async () => {
-    if (!cwd.trim() || starting) return;
+    if (!canStart) return;
     setStarting(true);
     const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", { cwd: cwd.trim(), prompt, ...tune, account: account || undefined }).catch(
       (err: Error) => ({ ok: false, message: err.message }) as ActionResult & { pid?: number; name?: string },
@@ -114,7 +122,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               <span className="field-label">Folder</span>
               <div className="field-row">
                 {typed ? (
-                  <input className="input mono" placeholder="/Users/you/code/project" value={cwd} autoFocus onChange={(e) => setCwd(e.target.value)} />
+                  <input className="input mono" placeholder="/Users/you/code/project" value={cwd} autoFocus onChange={(e) => setCwd(e.target.value)} onKeyDown={enterStarts} />
                 ) : (
                   <select className="select field-grow" value={cwd} onChange={(e) => setCwd(e.target.value)}>
                     {!choices.includes(cwd) && cwd && <option value={cwd}>{folderName(cwd)} · {cwd}</option>}
@@ -161,13 +169,11 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               <textarea
                 className="input textarea"
                 rows={4}
-                placeholder="What should Claude work on? You can also type it in the console."
+                placeholder="What should Claude work on? Enter starts it, Shift+Enter adds a line."
                 value={prompt}
                 autoFocus={!typed}
                 onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void start();
-                }}
+                onKeyDown={enterStarts}
               />
             </label>
 
@@ -217,7 +223,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               <button type="button" className="btn btn-ghost" onClick={close}>
                 Cancel
               </button>
-              <button type="button" className="btn btn-primary" disabled={!cwd.trim() || starting || !snap.setup.tmuxReady} onClick={() => void start()}>
+              <button type="button" className="btn btn-primary" disabled={!canStart} onClick={() => void start()}>
                 <Plus size={15} /> {starting ? "Starting…" : "Start session"}
               </button>
             </div>
