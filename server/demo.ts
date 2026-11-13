@@ -164,7 +164,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/terminal":
         return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${snap.settings.terminalFolder}.` });
       case "/api/settings": {
-        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown }; removePrompt?: unknown }>(req);
+        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown }>(req);
         const patch: Partial<Settings> = {};
         for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];

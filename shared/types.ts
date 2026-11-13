@@ -215,6 +215,10 @@ export interface SavedPrompt {
   id: string;
   title: string; // what its chip says
   text: string;
+  // What a session started with it runs on; "" leaves New session's choice as it is.
+  model: string;
+  effort: string;
+  mode: string;
 }
 
 export interface Snapshot {

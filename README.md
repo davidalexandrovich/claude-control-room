@@ -124,12 +124,14 @@ Keep the prompts you type again and again, and use one in a click.
 
 - **Save one:** type it as the first message in **New session** and click **Save as prompt**, or add it in **Settings → Saved prompts**.
 - **Start with one:** in **New session** your prompts are chips above the first message. A click puts that prompt in the box, after anything you've already typed. Edit it if you like, then press `Enter`.
+- **Slots to fill in:** write `<PR URL>`, `<ticket>` or any `<name>` in a prompt, for example `review <PR URL> against <ticket>`. When it's the first message in **New session**, each slot gets a line of its own, and the cursor starts in the first one. `Enter` goes to the next line, and on the last one it starts the session. What you type replaces the slot in the message. A slot you leave empty stays as it is, so Claude asks you for it. The saved prompt keeps its slots for next time.
+- **Its own model, effort and mode:** give a prompt the ones it works best with in **Settings → Saved prompts**, such as Opus · xhigh · plan for a planning prompt. A click on its chip sets them in **New session**, and says **Set by** that prompt. **Any** leaves that choice as it is. A prompt's settings never become your defaults: the next **New session** opens with the ones you picked yourself. **Save as prompt** keeps the model, effort and mode chosen in the dialog.
 - **Use one in a running session:** click the speech-bubble button on the console's bar and pick one. It's pasted at Claude Code's prompt but not sent, so you can change it first. Press `Enter` to send it.
 - **From the top bar:** click **Prompts**, next to **Notifications**.
   - Click a prompt to copy it, then paste it into any session, including one in VS Code or a Terminal tab.
   - **▶** starts a new session with it.
   - **Add or edit prompts** opens them in Settings.
-- **Rename, change or delete:** in **Settings → Saved prompts**. A prompt with no name shows its first words. Changes save when you leave the field. Deleting takes a second click.
+- **Rename, change or delete:** in **Settings → Saved prompts**, with each prompt's model, effort and mode. A prompt with no name shows its first words. Changes save when you leave the field. Deleting takes a second click.
 
 They're saved on this Mac in `~/.claude-control-room/config.json`, and are the same for every account.
 
