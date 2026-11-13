@@ -1,8 +1,9 @@
 // Your saved prompts: chips that fill New session's first message, a menu that pastes one into a console, and the
 // list in Settings where you change them.
-import { BookmarkPlus, MessageSquareText, Trash2 } from "lucide-react";
+import { BookmarkPlus, Copy, MessageSquareText, Play, Trash2 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
-import { MAX_PROMPT_TEXT, MAX_PROMPT_TITLE, promptText } from "../../../shared/prompts.ts";
+import { EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
+import { MAX_PROMPT_TEXT, MAX_PROMPT_TITLE, promptText, promptTune } from "../../../shared/prompts.ts";
 import type { ActionResult, SavedPrompt } from "../../../shared/types.ts";
 import { act, api, setState, toast, useStore } from "../store.ts";
 import { Popover } from "./Tuning.tsx";
@@ -18,13 +19,20 @@ function preview(text: string): string {
   return text.length > 280 ? `${text.slice(0, 280)}…` : text;
 }
 
-/** Chips above New session's first message; a click puts that prompt in it. */
-export function PromptChips({ prompts, onPick }: { prompts: SavedPrompt[]; onPick: (text: string) => void }) {
+/** What a prompt starts a session on, e.g. "Opus · high · plan", or "" when it leaves all three to you. */
+export function tuneLabel(p: SavedPrompt): string {
+  const t = promptTune(p);
+  const label = (list: typeof MODELS, id?: string) => (id ? (list.find((c) => c.id === id)?.label ?? id) : null);
+  return [label(MODELS, t.model), label(EFFORTS, t.effort), label(MODES, t.mode)].filter(Boolean).join(" · ");
+}
+
+/** Chips above New session's first message; a click puts that prompt in it, and sets what it asks to run on. */
+export function PromptChips({ prompts, onPick }: { prompts: SavedPrompt[]; onPick: (p: SavedPrompt) => void }) {
   if (!prompts.length) return null;
   return (
     <div className="prompt-chips" aria-label="Saved prompts">
       {prompts.map((p) => (
-        <button key={p.id} type="button" className="prompt-chip" data-tip={preview(p.text)} onClick={() => onPick(p.text)}>
+        <button key={p.id} type="button" className="prompt-chip" data-tip={tuneLabel(p) ? `${tuneLabel(p)}\n\n${preview(p.text)}` : preview(p.text)} onClick={() => onPick(p)}>
           <span>{p.title}</span>
         </button>
       ))}
@@ -41,6 +49,87 @@ export function SavePromptButton({ text, prompts }: { text: string; prompts: Sav
     <button type="button" className="link prompt-save" disabled={busy} data-tip="Keep it for next time. Rename or delete it in Settings." onClick={() => void act("savePrompt", "/api/settings", { savePrompt: { text } })}>
       <BookmarkPlus size={13} /> Save as prompt
     </button>
+  );
+}
+
+/** Settings, scrolled to the saved prompts. */
+function editPrompts(): void {
+  setState({ panel: "settings" });
+  setTimeout(() => document.getElementById("saved-prompts")?.scrollIntoView({ block: "start", behavior: "smooth" }), 80);
+}
+
+/**
+ * The Prompts pill in the top bar. A click copies a prompt, for a session anywhere: a VS Code or Terminal tab has no
+ * console here to paste it in. The play button starts a new session with it instead.
+ */
+export function PromptsPill() {
+  const prompts = usePrompts();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const close = () => setAnchor(null);
+  const copy = (p: SavedPrompt) => {
+    close();
+    void navigator.clipboard.writeText(p.text).then(
+      () => toast(`Copied “${p.title}”. Paste it in any session.`, "ok"),
+      () => toast("Could not copy it. Try again.", "error"),
+    );
+  };
+  return (
+    <>
+      <button
+        type="button"
+        className={`pill-toggle ${anchor ? "is-on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        data-tip={anchor ? undefined : "Your saved prompts: copy one, or start a session with it"}
+        data-tip-side="bottom"
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+      >
+        <MessageSquareText size={14} />
+        <span>Prompts</span>
+        <span className="pill-state">{prompts.length}</span>
+      </button>
+      {anchor && (
+        <Popover anchor={anchor} onClose={close}>
+          <div className="menu-title">Saved prompts</div>
+          {!prompts.length && <div className="menu-note">None yet. Type one in New session and click Save as prompt, or add one here.</div>}
+          {prompts.map((p) => (
+            <div key={p.id} className="prompt-pick">
+              <button type="button" role="menuitem" className="menu-item prompt-item" data-tip="Copy it" onClick={() => copy(p)}>
+                <span className="prompt-item-title">
+                  {p.title} {tuneLabel(p) && <span className="muted">· {tuneLabel(p)}</span>}
+                </span>
+                <span className="menu-meta prompt-item-text">{p.text}</span>
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`New session with ${p.title}`}
+                data-tip="Start a new session with it"
+                onClick={() => {
+                  close();
+                  setState({ draft: p.text, draftTune: promptTune(p), panel: "new" });
+                }}
+              >
+                <Play size={13} />
+              </button>
+            </div>
+          ))}
+          <div className="menu-note prompt-foot">
+            <Copy size={12} /> Click one to copy it.
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                close();
+                editPrompts();
+              }}
+            >
+              Add or edit prompts
+            </button>
+          </div>
+        </Popover>
+      )}
+    </>
   );
 }
 
@@ -87,7 +176,7 @@ export function PromptMenu({ onPick }: { onPick: (text: string) => void }) {
               className="link"
               onClick={() => {
                 close();
-                setState({ panel: "settings" });
+                editPrompts();
               }}
             >
               Edit prompts
@@ -151,6 +240,39 @@ function PromptRow({ p }: { p: SavedPrompt }) {
         )}
       </div>
       <textarea className="input textarea" aria-label="Prompt text" rows={3} maxLength={MAX_PROMPT_TEXT} value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} />
+      <PromptTuneRow p={p} />
+    </div>
+  );
+}
+
+const TUNE_PICKS = [
+  { key: "model", label: "Model", choices: MODELS },
+  { key: "effort", label: "Effort", choices: EFFORTS },
+  { key: "mode", label: "Mode", choices: MODES },
+] as const;
+
+/** What New session switches to when you pick this prompt. "Keep" leaves that one as New session has it. */
+function PromptTuneRow({ p }: { p: SavedPrompt }) {
+  const set = (key: (typeof TUNE_PICKS)[number]["key"], value: string) =>
+    void api<ActionResult>("/api/settings", { savePrompt: { id: p.id, title: p.title, text: p.text, [key]: value } }).then(
+      (r) => r.ok || toast(r.message, "error"),
+      () => toast("Could not save it. Try again.", "error"),
+    );
+  return (
+    <div className="prompt-tune">
+      {TUNE_PICKS.map((t) => (
+        <label key={t.key} className="prompt-tune-pick">
+          <span className="muted">{t.label}</span>
+          <select className="select" value={p[t.key] ?? ""} onChange={(e) => set(t.key, e.target.value)}>
+            <option value="">Keep</option>
+            {t.choices.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
     </div>
   );
 }
@@ -169,11 +291,16 @@ export function PromptsSection({ prompts }: { prompts: SavedPrompt[] }) {
   };
   return (
     <>
-      <h4 className="set-section">Saved prompts</h4>
+      <h4 className="set-section" id="saved-prompts">
+        Saved prompts
+      </h4>
       <div className="set-line set-line-stack">
         <div className="set-text">
           <b>Your prompts</b>
-          <span>One click puts one in New session's first message. In a session's console, the speech-bubble button pastes one at its prompt. Changes save when you leave a field.</span>
+          <span>
+            One click puts one in New session's first message, and sets the model, effort and mode you chose for it. In a session's console, the speech-bubble button pastes one at its prompt. Prompts, at the top, copies one
+            for a session anywhere. Changes save when you leave a field.
+          </span>
         </div>
         <div className="prompt-list">
           {prompts.map((p) => (

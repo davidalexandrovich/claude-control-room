@@ -2,10 +2,11 @@ import { FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { motion } from "motion/react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MODE, EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
-import type { ActionResult, Snapshot } from "../../../shared/types.ts";
+import { promptTune } from "../../../shared/prompts.ts";
+import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
-import { api, consoleName, remember, setState, stored, toast } from "../store.ts";
+import { api, consoleName, getState, remember, setState, stored, toast } from "../store.ts";
 import { PromptChips, SavePromptButton, usePrompts } from "./Prompts.tsx";
 
 const Console = lazy(() => import("./Console.tsx"));
@@ -21,13 +22,18 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const choices = useMemo(() => folderChoices(snap), []);
   const [cwd, setCwd] = useState(choices[0] ?? "");
   const [typed, setTyped] = useState(choices.length === 0 && !native);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => getState().draft);
+  // Taken once: the next New session opens empty again.
+  useEffect(() => {
+    if (getState().draft) setState({ draft: "", draftTune: {} });
+  }, []);
   const area = useRef<HTMLTextAreaElement>(null);
   const prompts = usePrompts();
   // A saved prompt fills an empty message, or goes after what is there. The caret goes to the end, so Enter starts it.
-  const pickPrompt = (text: string) => {
-    const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${text}` : text;
+  const pickPrompt = (p: SavedPrompt) => {
+    const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${p.text}` : p.text;
     setPrompt(next);
+    setTune((t) => ({ ...t, ...promptTune(p) }));
     requestAnimationFrame(() => {
       const el = area.current;
       if (!el) return;
@@ -36,9 +42,14 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
       el.scrollTop = el.scrollHeight;
     });
   };
-  // Empty means Claude Code's own default. The last choice is kept for next time.
-  const [tune, setTune] = useState(() => stored("cr.newSessionTune", { model: "", effort: "", mode: DEFAULT_MODE }));
-  const setTuned = (part: Partial<typeof tune>) => setTune((t) => ({ ...t, ...part }));
+  // Empty means Claude Code's own default. What you pick is kept for next time; what a saved prompt sets is not, so
+  // one plan-mode prompt does not leave every later session in plan mode.
+  const [picked, setPicked] = useState(() => stored("cr.newSessionTune", { model: "", effort: "", mode: DEFAULT_MODE }));
+  const [tune, setTune] = useState(() => ({ ...picked, ...getState().draftTune }));
+  const setTuned = (part: Partial<typeof tune>) => {
+    setTune((t) => ({ ...t, ...part }));
+    setPicked((t) => ({ ...t, ...part }));
+  };
   // The config folder of another account, or "" for the usual one. Each time the one from Settings, not the last choice:
   // one session on a personal account must not put the next ones there too.
   const [account, setAccount] = useState(() => {
@@ -95,7 +106,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     if (!open.current) return void (r.ok && toast(r.pid ? "Started" : r.message, "ok"));
     setStarting(false);
     if (!r.ok) return toast(r.message, "error");
-    remember("cr.newSessionTune", tune);
+    remember("cr.newSessionTune", picked);
     remember("cr.recentFolders", [cwd.trim(), ...stored<string[]>("cr.recentFolders", []).filter((f) => f !== cwd.trim())].slice(0, 8));
     if (r.pid) setState({ panel: null, drawer: r.pid, selected: r.pid, typeInto: r.pid });
     else if (r.name) setWaiting(r.name);

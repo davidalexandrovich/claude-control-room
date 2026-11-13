@@ -6,6 +6,7 @@ import { withKey } from "../lib/keys.ts";
 import { native } from "../lib/native.ts";
 import { act, api, openTerminal, remember, setState, useStore, VIEW } from "../store.ts";
 import { IconButton } from "./Primitives.tsx";
+import { PromptsPill } from "./Prompts.tsx";
 import { UpdatePill } from "./UpdateSection.tsx";
 
 export function Logo({ size = 22 }: { size?: number }) {
@@ -58,6 +59,7 @@ export function TopBar({ snap }: { snap: Snapshot | null }) {
       <div className="topbar-tools">
         {cfg && !VIEW.wallOnly && (
           <>
+            {VIEW.sessionPid === null && <PromptsPill />}
             <PillToggle
               on={cfg.notifications}
               label="Notifications"

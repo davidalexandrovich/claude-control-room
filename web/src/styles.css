@@ -4075,3 +4075,32 @@ body.is-resizing .drawer {
 .prompt-row > .input {
   flex: none; /* .input grows along a row; in this column it would shrink to nothing */
 }
+.prompt-tune {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.prompt-tune-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.prompt-pick {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.prompt-pick .menu-item {
+  flex: 1;
+  min-width: 0;
+}
+.prompt-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.prompt-foot .link {
+  margin-left: auto;
+}
