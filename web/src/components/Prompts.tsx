@@ -1,6 +1,6 @@
 // Your saved prompts: chips that fill New session's first message, a menu that pastes one into a console, and the
 // list in Settings where you change them.
-import { BookmarkPlus, Copy, MessageSquareText, Play, Trash2 } from "lucide-react";
+import { BookmarkPlus, Copy, MessageSquareText, Play, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
 import { MAX_PROMPT_TEXT, MAX_PROMPT_TITLE, promptText } from "../../../shared/prompts.ts";
@@ -27,16 +27,20 @@ export function tuneLabel(t: Tune): string {
   return [label(MODELS, t.model), label(EFFORTS, t.effort), label(MODES, t.mode)].filter(Boolean).join(" · ");
 }
 
-/** Chips above New session's first message; a click puts that prompt in it, with its model, effort and mode. */
-export function PromptChips({ prompts, onPick }: { prompts: SavedPrompt[]; onPick: (p: SavedPrompt) => void }) {
+/** Chips above New session's first message; a click puts that prompt in it, with its model, effort and mode. The one in
+ * the message shows an ×: a click takes it out again. */
+export function PromptChips({ prompts, onPick, picked }: { prompts: SavedPrompt[]; onPick: (p: SavedPrompt) => void; picked: string | null }) {
   if (!prompts.length) return null;
   return (
     <div className="prompt-chips" aria-label="Saved prompts">
       {prompts.map((p) => {
         const tune = tuneLabel(p);
+        const on = p.id === picked;
+        const tip = on ? "In the message. Click to take it out." : tune ? `${preview(p.text)} · Starts on ${tune}.` : preview(p.text);
         return (
-          <button key={p.id} type="button" className="prompt-chip" data-tip={tune ? `${preview(p.text)} · Starts on ${tune}.` : preview(p.text)} onClick={() => onPick(p)}>
+          <button key={p.id} type="button" className={`prompt-chip ${on ? "is-on" : ""}`} aria-pressed={on} data-tip={tip} onClick={() => onPick(p)}>
             <span>{p.title}</span>
+            {on && <X size={12} />}
           </button>
         );
       })}

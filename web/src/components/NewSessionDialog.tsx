@@ -1,8 +1,8 @@
-import { FolderOpen, Plus, TerminalSquare } from "lucide-react";
+import { FolderOpen, Plus, TerminalSquare, X } from "lucide-react";
 import { motion } from "motion/react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MODE, EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
-import { fillSlots, promptSlots } from "../../../shared/prompts.ts";
+import { fillSlots, pickPrompt as pickInto, promptSlots } from "../../../shared/prompts.ts";
 import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
@@ -43,13 +43,15 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   };
   // A slot in the message, as in "review <PR URL>", gets a line of its own to fill in; the message keeps the slot, and
   // what you type there goes in its place when the session starts.
-  const slots = useMemo(() => promptSlots(prompt), [prompt]);
+  // A line closed with its × stays closed, its slot left for Claude to ask about, until another prompt is picked.
+  const [closedSlots, setClosedSlots] = useState<string[]>([]);
+  const slots = useMemo(() => promptSlots(prompt).filter((n) => !closedSlots.includes(n)), [prompt, closedSlots]);
   const [slotValues, setSlotValues] = useState<Record<string, string>>({});
   const slotInput = (name: string) => document.querySelector<HTMLInputElement>(`.prompt-slot input[data-slot="${CSS.escape(name)}"]`);
   // The first slot still empty takes the keyboard; with none, the message does, its caret at the end, so Enter starts it.
   const focusNext = (text: string) =>
     requestAnimationFrame(() => {
-      const empty = promptSlots(text).find((n) => !slotValues[n]?.trim());
+      const empty = promptSlots(text).find((n) => !slotValues[n]?.trim() && !closedSlots.includes(n));
       if (empty) return void slotInput(empty)?.focus();
       const el = area.current;
       if (!el) return;
@@ -60,15 +62,19 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   useEffect(() => {
     if (draft) focusNext(draft.text);
   }, []);
-  // A saved prompt fills an empty message, or goes after what is there, and sets the model, effort and mode it asks for.
+  // The saved prompt in the message, and what you had typed ahead of it: another chip takes its place.
+  const [picked, setPicked] = useState<{ prompt: SavedPrompt; base: string } | null>(draft ? { prompt: draft, base: "" } : null);
+  // A chip puts its prompt in the message, in place of the one picked before, with its model, effort and mode on top of
+  // yours; clicked again, it takes them out. The lines of the slots it brought go with it.
   const pickPrompt = (p: SavedPrompt) => {
-    const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${p.text}` : p.text;
-    setPrompt(next);
-    if (p.model || p.effort || p.mode) {
-      setTune((t) => withPrompt(t, p));
-      setSetBy(p.title);
-    }
-    focusNext(next);
+    const next = pickInto(prompt, picked, p);
+    setPrompt(next.message);
+    setPicked(next.picked);
+    setClosedSlots([]);
+    const on = next.picked?.prompt ?? null;
+    setTune(withPrompt(mine, on));
+    setSetBy(on && (on.model || on.effort || on.mode) ? on.title : null);
+    focusNext(next.message);
   };
   // Enter in a slot goes to the next one; in the last, it starts the session, as Enter does in the message.
   const slotKeys = (e: React.KeyboardEvent, i: number) => {
@@ -222,7 +228,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                 </label>
                 <SavePromptButton text={prompt} prompts={prompts} tune={tune} />
               </div>
-              <PromptChips prompts={prompts} onPick={pickPrompt} />
+              <PromptChips prompts={prompts} onPick={pickPrompt} picked={picked?.prompt.id ?? null} />
               {slots.length > 0 && (
                 <div className="prompt-slots">
                   {slots.map((name, i) => (
@@ -237,6 +243,18 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                         onChange={(e) => setSlotValues((v) => ({ ...v, [name]: e.target.value }))}
                         onKeyDown={(e) => slotKeys(e, i)}
                       />
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Close the ${name} line`}
+                        data-tip={`Close this line. The message keeps <${name}>, for Claude to ask about.`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setClosedSlots((c) => [...c, name]);
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
                     </label>
                   ))}
                 </div>

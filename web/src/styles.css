@@ -3986,7 +3986,17 @@ body.is-resizing .drawer {
   font-size: 12px;
   cursor: pointer;
 }
+.prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.prompt-chip.is-on {
+  border-color: rgba(122, 162, 255, 0.7);
+  background: rgba(122, 162, 255, 0.24);
+}
 .prompt-chip > span {
+  min-width: 0;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4211,7 +4221,7 @@ body.is-resizing .drawer {
 }
 .prompt-slot {
   display: grid;
-  grid-template-columns: minmax(80px, max-content) 1fr;
+  grid-template-columns: minmax(80px, max-content) 1fr auto;
   align-items: center;
   gap: 10px;
   font-size: 12px;
