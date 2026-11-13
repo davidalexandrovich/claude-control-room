@@ -4075,3 +4075,21 @@ body.is-resizing .drawer {
 .prompt-row > .input {
   flex: none; /* .input grows along a row; in this column it would shrink to nothing */
 }
+.prompt-pick {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.prompt-pick .menu-item {
+  flex: 1;
+  min-width: 0;
+}
+.prompt-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.prompt-foot .link {
+  margin-left: auto;
+}

@@ -30,6 +30,7 @@ export interface State {
   consoleHeight: number | null; // dragged height of a console in its details; null fills the room
   menu: { pid: number; x: number; y: number } | null; // a session's right-click menu, where it opened
   renaming: number | null; // pid whose name is being edited, in its details when they show, else on its tile
+  draft: string; // the first message New session opens with, as a saved prompt picked in the top bar leaves it
 }
 
 /** How a session's console shows: in its details, folded to its bar, or filling the window. */
@@ -77,6 +78,7 @@ let state: State = {
   consoleHeight: stored<number | null>("cr.consoleHeight", null),
   menu: null,
   renaming: null,
+  draft: "",
 };
 const listeners = new Set<() => void>();
 
