@@ -25,7 +25,7 @@ export function PromptChips({ prompts, onPick }: { prompts: SavedPrompt[]; onPic
     <div className="prompt-chips" aria-label="Saved prompts">
       {prompts.map((p) => (
         <button key={p.id} type="button" className="prompt-chip" data-tip={preview(p.text)} onClick={() => onPick(p.text)}>
-          {p.title}
+          <span>{p.title}</span>
         </button>
       ))}
     </div>

@@ -4010,18 +4010,14 @@ body.is-resizing .drawer {
   font-size: 12px;
   font-weight: 500;
 }
+/* Nothing here clips: each chip's tooltip shows the start of its prompt. */
 .prompt-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  max-height: 64px;
-  overflow-y: auto;
 }
 .prompt-chip {
   max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--line-2);
@@ -4030,6 +4026,12 @@ body.is-resizing .drawer {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+.prompt-chip > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .prompt-chip:hover {
   border-color: rgba(122, 162, 255, 0.55);
