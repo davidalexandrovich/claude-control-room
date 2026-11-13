@@ -25,6 +25,7 @@ import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "
 import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { commandOf, KEY_GROUPS, KEYS, sessionKeyOf } from "../web/src/lib/keys.ts";
 import { fitWall, TILE_MIN_H, TILE_MIN_W } from "../web/src/lib/layout.ts";
+import { allHidden, cardColumns, dragGap } from "../web/src/lib/cards.ts";
 
 const NOW = 1_800_000_000_000;
 const file = (status: string, waitingFor: string | null = null, ago = 60_000): StatusFile => ({
@@ -493,6 +494,24 @@ describe("small parsers", () => {
     expect(openSince(pr("MERGED", "2026-11-04T16:00:00Z", "2026-11-04T16:00:00Z"), started)?.number).toBe(1450);
     expect(openSince(pr("OPEN", null, "2026-10-01T00:00:00Z"), started)?.number).toBe(1450);
     expect(openSince(null, started)).toBeNull();
+  });
+});
+
+describe("the cards at the top", () => {
+  it("lays out only the cards that show, each its dragged width or its usual share, and the tray last", () => {
+    expect(cardColumns(["sessions", "mac"], {}, false)).toBe("minmax(200px, 270fr) minmax(250px, 315fr)");
+    expect(cardColumns(["sessions", "usage"], { sessions: 514 }, true)).toBe("minmax(200px, 514fr) minmax(290px, 390fr) max-content");
+  });
+
+  it("moves a gap between two cards only as far as each one's least width", () => {
+    expect(dragGap({ w: 300, min: 200 }, { w: 400, min: 280 }, 50)).toEqual([350, 350]);
+    expect(dragGap({ w: 300, min: 200 }, { w: 400, min: 280 }, 500)).toEqual([420, 280]);
+    expect(dragGap({ w: 300, min: 200 }, { w: 400, min: 280 }, -500)).toEqual([200, 500]);
+  });
+
+  it("knows when every card is folded", () => {
+    expect(allHidden(["sessions", "attention", "prs", "usage", "mac"])).toBe(true);
+    expect(allHidden(["sessions", "prs"])).toBe(false);
   });
 });
 

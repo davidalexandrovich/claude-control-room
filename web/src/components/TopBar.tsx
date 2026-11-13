@@ -4,8 +4,10 @@ import type { Snapshot } from "../../../shared/types.ts";
 import { playChime } from "../lib/alerts.ts";
 import { withKey } from "../lib/keys.ts";
 import { native } from "../lib/native.ts";
-import { act, api, openTerminal, remember, setState, useStore, VIEW } from "../store.ts";
+import { act, api, openTerminal, setState, useStore, VIEW } from "../store.ts";
 import { IconButton } from "./Primitives.tsx";
+import { allHidden } from "../lib/cards.ts";
+import { toggleAllCards } from "../lib/overview.ts";
 import { PromptsPill } from "./Prompts.tsx";
 import { UpdatePill } from "./UpdateSection.tsx";
 
@@ -44,7 +46,8 @@ function PillToggle(props: { on: boolean; onIcon: React.ReactNode; offIcon: Reac
 
 export function TopBar({ snap }: { snap: Snapshot | null }) {
   const connected = useStore((s) => s.connected);
-  const collapsed = useStore((s) => s.overviewCollapsed);
+  const hidden = useStore((s) => s.ovHidden);
+  const folded = allHidden(hidden);
   const cfg = snap?.settings;
   return (
     <header className={`topbar ${native ? "is-native" : ""}`}>
@@ -82,14 +85,8 @@ export function TopBar({ snap }: { snap: Snapshot | null }) {
             />
           </>
         )}
-        <IconButton
-          label={collapsed ? "Show the overview" : "Hide the overview"}
-          onClick={() => {
-            setState({ overviewCollapsed: !collapsed });
-            remember("cr.overviewCollapsed", !collapsed);
-          }}
-        >
-          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+        <IconButton label={folded ? "Show the cards again" : "Minimize the cards to one row of chips, for more room below"} onClick={toggleAllCards}>
+          {folded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
         </IconButton>
         {snap && !VIEW.wallOnly && VIEW.sessionPid === null && <UpdatePill snap={snap} />}
         {cfg && !VIEW.wallOnly && VIEW.sessionPid === null && (

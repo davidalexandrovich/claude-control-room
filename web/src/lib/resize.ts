@@ -1,6 +1,7 @@
 // Sizes you set by dragging an edge: the details panel's width and the console's height. They live in the store, so
 // the panel's edge and the console's edges move the same thing, and on this Mac for next time.
 import { getState, remember, setState } from "../store.ts";
+import { keepCardWidths } from "./overview.ts";
 
 export const DRAWER_MIN = 420;
 const CONSOLE_MIN = 140;
@@ -47,4 +48,5 @@ export function keepSizes(): void {
   const st = getState();
   remember("cr.drawerWidths", st.drawerWidths);
   remember("cr.consoleHeight", st.consoleHeight);
+  keepCardWidths();
 }

@@ -69,7 +69,7 @@ export function PromptsPill() {
     <>
       <button
         type="button"
-        className={`pill-toggle ${anchor ? "is-on" : ""}`}
+        className={`pill-toggle pill-menu ${anchor ? "is-on" : ""}`}
         aria-haspopup="menu"
         aria-expanded={!!anchor}
         data-tip={anchor ? undefined : "Your saved prompts: copy one, or start a session with it"}

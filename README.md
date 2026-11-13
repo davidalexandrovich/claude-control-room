@@ -78,6 +78,13 @@ No more searching through terminal tabs.
 <img src="docs/images/dashboard.png" alt="The dashboard: an overview on top and a wall of session tiles below">
 
 The overview on top counts your sessions, lists what needs you, and shows your pull requests and usage.
+You can arrange its cards the way you like:
+
+- **Minimize a card:** click its **−**. It becomes a small chip beside the other cards, showing what matters, such as `Needs you 2`. The chip turns amber while something needs you. Click a chip to bring its card back.
+- **Resize cards:** drag the gap between two cards to make one wider and the other narrower. Double-click a gap to go back to the usual widths.
+- **Minimize all of them:** click **^** in the top bar. The cards fold into one slim row of chips, so the wall, and the console in Focus, get the room. Click it again to bring back the cards you had open.
+
+Your arrangement is kept on this Mac.
 Below it, each session is a tile, like a monitor on a wall. Every tile has three parts:
 
 - **Top:** the name, the **rc** button, the task in plain English, and chips for the PR, the story and the branch.
