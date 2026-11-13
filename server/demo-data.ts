@@ -488,6 +488,7 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       newSessionAccount: "",
       prompts: [
         { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity.", model: "opus", effort: "high", mode: "auto" },
+        { id: "review-pr", title: "Review a PR", text: "Review <PR URL> against its ticket <ticket URL>. Inline comments, most severe first. Don't post anything.", model: "opus", effort: "high", mode: "auto" },
         { id: "pr", title: "Write the PR", text: "Write a short PR description for this branch:\n- what changed and why\n- how it was tested\n- anything a reviewer should look at first", model: "sonnet", effort: "low", mode: "" },
         { id: "plan", title: "Plan first", text: "Read the code involved and give me a short plan before changing anything. Ask if something is unclear.", model: "opus", effort: "xhigh", mode: "plan" },
       ],

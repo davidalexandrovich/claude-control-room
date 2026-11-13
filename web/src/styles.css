@@ -4203,3 +4203,24 @@ body.is-resizing .drawer {
   flex: 1;
   min-width: 0;
 }
+/* A line for each <slot> in the first message: its name, then what goes there. */
+.prompt-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prompt-slot {
+  display: grid;
+  grid-template-columns: minmax(80px, max-content) 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.prompt-slot > span {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

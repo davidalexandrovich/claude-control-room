@@ -2,6 +2,7 @@ import { FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { motion } from "motion/react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MODE, EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
+import { fillSlots, promptSlots } from "../../../shared/prompts.ts";
 import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
@@ -40,8 +41,26 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     setMine((t) => ({ ...t, ...part }));
     setSetBy(null);
   };
+  // A slot in the message, as in "review <PR URL>", gets a line of its own to fill in; the message keeps the slot, and
+  // what you type there goes in its place when the session starts.
+  const slots = useMemo(() => promptSlots(prompt), [prompt]);
+  const [slotValues, setSlotValues] = useState<Record<string, string>>({});
+  const slotInput = (name: string) => document.querySelector<HTMLInputElement>(`.prompt-slot input[data-slot="${CSS.escape(name)}"]`);
+  // The first slot still empty takes the keyboard; with none, the message does, its caret at the end, so Enter starts it.
+  const focusNext = (text: string) =>
+    requestAnimationFrame(() => {
+      const empty = promptSlots(text).find((n) => !slotValues[n]?.trim());
+      if (empty) return void slotInput(empty)?.focus();
+      const el = area.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(text.length, text.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  useEffect(() => {
+    if (draft) focusNext(draft.text);
+  }, []);
   // A saved prompt fills an empty message, or goes after what is there, and sets the model, effort and mode it asks for.
-  // The caret goes to the end, so Enter starts it.
   const pickPrompt = (p: SavedPrompt) => {
     const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${p.text}` : p.text;
     setPrompt(next);
@@ -49,13 +68,14 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
       setTune((t) => withPrompt(t, p));
       setSetBy(p.title);
     }
-    requestAnimationFrame(() => {
-      const el = area.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(next.length, next.length);
-      el.scrollTop = el.scrollHeight;
-    });
+    focusNext(next);
+  };
+  // Enter in a slot goes to the next one; in the last, it starts the session, as Enter does in the message.
+  const slotKeys = (e: React.KeyboardEvent, i: number) => {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (i < slots.length - 1) slotInput(slots[i + 1])?.focus();
+    else void start();
   };
   // The config folder of another account, or "" for the usual one. Each time the one from Settings, not the last choice:
   // one session on a personal account must not put the next ones there too.
@@ -106,7 +126,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const start = async () => {
     if (!canStart) return;
     setStarting(true);
-    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", { cwd: cwd.trim(), prompt, ...tune, account: account || undefined }).catch(
+    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
       (err: Error) => ({ ok: false, message: err.message }) as ActionResult & { pid?: number; name?: string },
     );
     // Closed while it started: the session runs, and shows in the list, but nothing jumps at you.
@@ -203,6 +223,24 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                 <SavePromptButton text={prompt} prompts={prompts} tune={tune} />
               </div>
               <PromptChips prompts={prompts} onPick={pickPrompt} />
+              {slots.length > 0 && (
+                <div className="prompt-slots">
+                  {slots.map((name, i) => (
+                    <label key={name} className="prompt-slot">
+                      <span>{name}</span>
+                      <input
+                        className="input"
+                        data-slot={name}
+                        spellCheck={false}
+                        placeholder={`Goes where the message says <${name}>`}
+                        value={slotValues[name] ?? ""}
+                        onChange={(e) => setSlotValues((v) => ({ ...v, [name]: e.target.value }))}
+                        onKeyDown={(e) => slotKeys(e, i)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
               <textarea
                 id="new-first-message"
                 ref={area}
@@ -210,7 +248,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                 rows={4}
                 placeholder="What should Claude work on? Enter starts it, Shift+Enter adds a line."
                 value={prompt}
-                autoFocus={!typed}
+                autoFocus={!typed && !draft}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={enterStarts}
               />

@@ -18,7 +18,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
-import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
+import { cleanPrompts, fillSlots, MAX_PROMPTS, promptSlots, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -464,6 +464,15 @@ describe("saved prompts", () => {
     const cleared = withPrompt(renamed.prompts, { id: saved.saved.id, text: "Plan it", mode: "" }, id);
     if ("error" in cleared) throw new Error(cleared.error);
     expect(cleared.saved).toMatchObject({ model: "opus", effort: "high", mode: "" });
+  });
+
+  it("finds the slots to fill in a prompt and puts in the values given", () => {
+    const text = "review <PR URL> with the agent.\nread <shortcut URL or description>, then <PR URL> again. a < b > c, <div>x</div>";
+    expect(promptSlots(text)).toEqual(["PR URL", "shortcut URL or description", "div"]);
+    expect(fillSlots(text, { "PR URL": " https://github.com/o/r/pull/1 ", div: "" })).toBe(
+      "review https://github.com/o/r/pull/1 with the agent.\nread <shortcut URL or description>, then https://github.com/o/r/pull/1 again. a < b > c, <div>x</div>",
+    );
+    expect(promptSlots("no slots here")).toEqual([]);
   });
 
   it("stops at the most it keeps", () => {

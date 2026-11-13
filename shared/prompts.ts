@@ -72,3 +72,16 @@ export function withPrompt(
   const saved = { id: at < 0 ? newId() : list[at].id, title: promptTitle(input.title, text), text, ...promptTune(input, list[at]) };
   return { prompts: at < 0 ? [...list, saved] : list.map((p, i) => (i === at ? saved : p)), saved };
 }
+
+// A slot in a prompt, as in "review <PR URL>": a name that starts with a letter, between < and >, on one line.
+const SLOT = /<([A-Za-z][\w .,/'&-]{0,48})>/g;
+
+/** Pure: the slots in a message to fill in before it is sent, each once, in the order they come. */
+export function promptSlots(text: string): string[] {
+  return [...new Set([...text.matchAll(SLOT)].map((m) => m[1]))];
+}
+
+/** Pure: the message with each slot that has a value put in; one left empty stays as it is, for Claude to ask about. */
+export function fillSlots(text: string, values: Record<string, string>): string {
+  return text.replace(SLOT, (slot, name: string) => values[name]?.trim() || slot);
+}
