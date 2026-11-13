@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -6,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { isIdeId } from "../shared/ides.ts";
 import type { ActionResult, CloseRequest, Settings } from "../shared/types.ts";
 import { MAX_ACCOUNTS } from "../shared/claude.ts";
+import { withPrompt } from "../shared/prompts.ts";
 import { currentAccount, readAccount, readAccounts, refreshLinkScripts, startAccountSwitch } from "./account.ts";
 import { accountByDir } from "./homes.ts";
 import {
@@ -256,6 +258,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
             addAccount?: { label?: unknown; dir?: unknown };
             renameAccount?: { label?: unknown; dir?: unknown };
             removeAccount?: string;
+            savePrompt?: { id?: unknown; title?: unknown; text?: unknown };
+            removePrompt?: unknown;
           }
         >(req);
         const patch: Partial<Settings> = {};
@@ -327,6 +331,16 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           patch.accounts = settings().accounts.filter((a) => a.dir !== b.removeAccount);
           // New sessions go back to the usual account.
           if (settings().newSessionAccount === b.removeAccount) patch.newSessionAccount = "";
+        }
+        if (b.savePrompt) {
+          const r = withPrompt(settings().prompts, b.savePrompt, () => randomUUID().slice(0, 8));
+          if ("error" in r) return send(res, 200, { ok: false, message: r.error });
+          patch.prompts = r.prompts;
+          message = `Saved “${r.saved.title}”`;
+        }
+        if (typeof b.removePrompt === "string") {
+          patch.prompts = settings().prompts.filter((p) => p.id !== b.removePrompt);
+          message = "Prompt deleted";
         }
         await saveSettings(patch);
         await monitor.tick();

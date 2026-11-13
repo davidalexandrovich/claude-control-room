@@ -111,6 +111,17 @@ The bar above the console works like a window's title bar. **A↓** and **A↑**
 Drag the left edge of the details panel to make it wider or narrower. Double-click the edge for the usual width.
 The console has edges and corners of its own: drag the top or bottom for its height, a side for its width, a corner for both. Double-click an edge to reset it.
 
+### Saved prompts
+
+Keep the prompts you type again and again, and use one in a click.
+
+- **Save one:** type it as the first message in **New session** and click **Save as prompt**, or add it in **Settings → Saved prompts**.
+- **Start with one:** in **New session** your prompts are chips above the first message. A click puts that prompt in the box, after anything you've already typed. Edit it if you like, then press `Enter`.
+- **Use one in a running session:** click the speech-bubble button on the console's bar and pick one. It's pasted at Claude Code's prompt but not sent, so you can change it first. Press `Enter` to send it.
+- **Rename, change or delete:** in **Settings → Saved prompts**. A prompt with no name shows its first words. Changes save when you leave the field. Deleting takes a second click.
+
+They're saved on this Mac in `~/.claude-control-room/config.json`, and are the same for every account.
+
 A session started here keeps running when you quit Control Room. It is back in its console when the app opens again.
 Close it with **Close…**, or type `/exit` in its console.
 
@@ -316,6 +327,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 | Watch one session on its own | Click the pop-out button on its tile. |
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
 | Start a session and type to it | Click **New session**, pick a folder, click **Start session**. Type in its console. |
+| Reuse a prompt you type often | Save it with **Save as prompt** in **New session**. Then click its chip there, or pick it from the speech-bubble button on a console's bar. |
 | Use a second Claude account | Add it in **Settings → Claude accounts** and sign in. Then pick it under **Account** in **New session**. |
 | Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. A terminal gets your own editor and keys, even when Control Room was started from a Claude Code session. |
 | See the changes of a session started here | Click **Open in …** in its details, or right-click it. Its folder opens in the IDE from Settings. |

@@ -6,6 +6,7 @@ import type { ActionResult, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
 import { api, consoleName, remember, setState, stored, toast } from "../store.ts";
+import { PromptChips, SavePromptButton, usePrompts } from "./Prompts.tsx";
 
 const Console = lazy(() => import("./Console.tsx"));
 
@@ -21,6 +22,20 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const [cwd, setCwd] = useState(choices[0] ?? "");
   const [typed, setTyped] = useState(choices.length === 0 && !native);
   const [prompt, setPrompt] = useState("");
+  const area = useRef<HTMLTextAreaElement>(null);
+  const prompts = usePrompts();
+  // A saved prompt fills an empty message, or goes after what is there. The caret goes to the end, so Enter starts it.
+  const pickPrompt = (text: string) => {
+    const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${text}` : text;
+    setPrompt(next);
+    requestAnimationFrame(() => {
+      const el = area.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(next.length, next.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  };
   // Empty means Claude Code's own default. The last choice is kept for next time.
   const [tune, setTune] = useState(() => stored("cr.newSessionTune", { model: "", effort: "", mode: DEFAULT_MODE }));
   const setTuned = (part: Partial<typeof tune>) => setTune((t) => ({ ...t, ...part }));
@@ -162,11 +177,17 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               </label>
             )}
 
-            <label className="field">
-              <span className="field-label">
-                First message <span className="muted">optional</span>
-              </span>
+            <div className="field">
+              <div className="field-label field-label-row">
+                <label htmlFor="new-first-message">
+                  First message <span className="muted">optional</span>
+                </label>
+                <SavePromptButton text={prompt} prompts={prompts} />
+              </div>
+              <PromptChips prompts={prompts} onPick={pickPrompt} />
               <textarea
+                id="new-first-message"
+                ref={area}
                 className="input textarea"
                 rows={4}
                 placeholder="What should Claude work on? Enter starts it, Shift+Enter adds a line."
@@ -175,7 +196,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={enterStarts}
               />
-            </label>
+            </div>
 
             <div className="field-trio">
               <label className="field">

@@ -208,6 +208,13 @@ export interface Settings {
   accounts: AccountRef[]; // Claude accounts besides the one in ~/.claude
   defaultAccountLabel: string; // the name of that one here: "Default" until you give it another, such as "Work"
   newSessionAccount: string; // the folder of the account New session starts on: "" for the one in ~/.claude
+  prompts: SavedPrompt[]; // your own prompts, to start a session with or paste into one
+}
+
+export interface SavedPrompt {
+  id: string;
+  title: string; // what its chip says
+  text: string;
 }
 
 export interface Snapshot {

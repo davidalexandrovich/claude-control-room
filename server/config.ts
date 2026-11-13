@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, normalize } from "node:path";
 import { MAX_ACCOUNTS } from "../shared/claude.ts";
 import { isIdeId } from "../shared/ides.ts";
+import { cleanPrompts } from "../shared/prompts.ts";
 import type { AccountRef, Settings } from "../shared/types.ts";
 import { chosenIde } from "./ide.ts";
 import { APP_DIR, CLAUDE_DIR, CONFIG_FILE, HOME } from "./paths.ts";
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accounts: [],
   defaultAccountLabel: "Default",
   newSessionAccount: "",
+  prompts: [],
 };
 
 let current: Settings = { ...DEFAULT_SETTINGS };
@@ -31,6 +33,7 @@ export function cleanSettings(raw: Partial<Settings>): Settings {
   s.accounts = cleanAccounts(s.accounts);
   s.defaultAccountLabel = accountLabel(s.defaultAccountLabel) ?? DEFAULT_SETTINGS.defaultAccountLabel;
   if (!s.accounts.some((a) => a.dir === s.newSessionAccount)) s.newSessionAccount = "";
+  s.prompts = cleanPrompts(s.prompts);
   return s;
 }
 
