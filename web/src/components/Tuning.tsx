@@ -22,7 +22,7 @@ export function blocked(s: Session, what: What): string | null {
 }
 
 /** A menu in its own layer, so no card edge cuts it off. It opens upward when there is no room below. */
-function Popover({ anchor, onClose, children }: { anchor: HTMLElement; onClose: () => void; children: ReactNode }) {
+export function Popover({ anchor, onClose, children }: { anchor: HTMLElement; onClose: () => void; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
   useLayoutEffect(() => {

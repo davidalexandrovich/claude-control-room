@@ -7,6 +7,7 @@ import { AArrowDown, AArrowUp, ChevronDown, Maximize2, Minimize2, Minus, Picture
 import { useEffect, useRef, useState } from "react";
 import { commandOf } from "../lib/keys.ts";
 import { api, type ConsoleView, remember, stored } from "../store.ts";
+import { PromptMenu } from "./Prompts.tsx";
 
 const THEME = {
   background: "#0a0d13",
@@ -250,6 +251,17 @@ export default function Console({ name, pid, account, autoFocus = false, onFocus
           {view !== "normal" && title}
           {view === "min" && <span className="muted"> · console minimized, click to show</span>}
         </span>
+        {view !== "min" && state === "live" && (
+          <div className="console-tools" aria-label="Prompts">
+            {/* xterm wraps it as a paste, as Claude Code asked, so its new lines don't send it; you press Enter. */}
+            <PromptMenu
+              onPick={(text) => {
+                termRef.current?.paste(text);
+                termRef.current?.focus();
+              }}
+            />
+          </div>
+        )}
         {view !== "min" && (
           <div className="console-tools" aria-label="Text size">
             <button type="button" aria-label="Smaller text" data-tip="Smaller text" disabled={fontSize <= FONT.min} onClick={() => zoom(-1)}>

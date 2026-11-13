@@ -8,6 +8,7 @@ import { native } from "../lib/native.ts";
 import { act, api, setState, toast, useStore } from "../store.ts";
 import { Toggle } from "./Primitives.tsx";
 import { AccountsSection } from "./AccountsSection.tsx";
+import { PromptsSection } from "./Prompts.tsx";
 import { UpdateSection } from "./UpdateSection.tsx";
 
 function Line(props: { title: string; text: React.ReactNode; children: React.ReactNode }) {
@@ -144,6 +145,8 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
           <Line title="Show VS Code panel sessions" text="Sessions in the Claude Code side panel of VS Code, not only terminal ones.">
             <Toggle label="Show VS Code panel sessions" on={cfg.includeIdePanel} onChange={(on) => save({ includeIdePanel: on })} />
           </Line>
+
+          <PromptsSection prompts={cfg.prompts} />
 
           <AccountsSection snap={snap} />
 

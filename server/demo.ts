@@ -1,11 +1,13 @@
 // The demo: the real UI with sample sessions (server/demo-data.ts). It reads nothing from this Mac and changes
 // nothing; actions only move the sample sessions along. Run: npm run demo
+import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
 import { isEffort, isMode, modeName, MODELS } from "../shared/claude.ts";
 import { keyBetween } from "./order.ts";
 import { ideName, isIdeId, openTarget, targetName } from "../shared/ides.ts";
+import { withPrompt } from "../shared/prompts.ts";
 import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "../shared/types.ts";
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
@@ -162,7 +164,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/terminal":
         return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${snap.settings.terminalFolder}.` });
       case "/api/settings": {
-        const b = await body<Partial<Settings>>(req);
+        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown }; removePrompt?: unknown }>(req);
         const patch: Partial<Settings> = {};
         for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
@@ -171,9 +173,20 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         if (b.layout === "fit" || b.layout === "comfortable" || b.layout === "focus") patch.layout = b.layout;
         if (isIdeId(b.ide)) patch.ide = b.ide;
         if (typeof b.terminalFolder === "string" && b.terminalFolder.trim()) patch.terminalFolder = b.terminalFolder.trim();
+        let message = "Saved";
+        if (b.savePrompt) {
+          const r = withPrompt(snap.settings.prompts, b.savePrompt, () => randomUUID().slice(0, 8));
+          if ("error" in r) return send(res, 200, { ok: false, message: r.error });
+          patch.prompts = r.prompts;
+          message = `Saved “${r.saved.title}”`;
+        }
+        if (typeof b.removePrompt === "string") {
+          patch.prompts = snap.settings.prompts.filter((p) => p.id !== b.removePrompt);
+          message = "Prompt deleted";
+        }
         snap = { ...snap, settings: { ...snap.settings, ...patch } };
         publish();
-        return send(res, 200, { ok: true, message: "Saved" });
+        return send(res, 200, { ok: true, message });
       }
       case "/api/power": {
         const on = (await body<{ on: boolean }>(req)).on === true;

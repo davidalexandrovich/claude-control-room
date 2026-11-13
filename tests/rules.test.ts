@@ -18,6 +18,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
+import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -417,6 +418,53 @@ describe("Claude Code settings merge", () => {
     expect(tapScript("/their/line.sh")).toContain(`printf '%s' "$input" | /their/line.sh`);
     expect(tapScript(null)).toContain("rate_limits.five_hour");
     expect(HOOK_BODY).toContain("exit 0");
+  });
+});
+
+describe("saved prompts", () => {
+  let n = 0;
+  const id = () => `p${++n}`;
+
+  it("keeps text a console can paste whole: no control characters, one kind of line end", () => {
+    expect(promptText("  Review this\r\nthen \x1b[201~stop\tnow\x07  ")).toBe("Review this\nthen [201~stop\tnow");
+    expect(promptText(42)).toBe("");
+  });
+
+  it("names a prompt after its first words when you give it no name", () => {
+    expect(promptTitle("  My   review ", "x")).toBe("My review");
+    expect(promptTitle("", "\n Review the changes on this branch for bugs\nand more")).toBe("Review the changes on this");
+    expect(promptTitle(undefined, "a".repeat(80))).toHaveLength(40);
+  });
+
+  it("adds a prompt at the end and changes one in place, never two with the same text", () => {
+    const one = withPrompt([], { text: "Plan first" }, id);
+    if ("error" in one) throw new Error(one.error);
+    expect(one.saved).toEqual({ id: "p1", title: "Plan first", text: "Plan first" });
+    const two = withPrompt(one.prompts, { title: "PR", text: "Write the PR" }, id);
+    if ("error" in two) throw new Error(two.error);
+    expect(two.prompts.map((p) => p.title)).toEqual(["Plan first", "PR"]);
+    const changed = withPrompt(two.prompts, { id: "p1", title: "Plan", text: "Plan first, then ask" }, id);
+    if ("error" in changed) throw new Error(changed.error);
+    expect(changed.prompts.map((p) => [p.id, p.title])).toEqual([["p1", "Plan"], ["p2", "PR"]]);
+    expect(withPrompt(changed.prompts, { text: " Write the PR " }, id)).toEqual({ error: "That prompt is saved already, as “PR”." });
+    expect(withPrompt(changed.prompts, { id: "p1", text: "Write the PR" }, id)).toMatchObject({ error: expect.stringContaining("saved already") });
+    expect(withPrompt(changed.prompts, { id: "p1", text: "  " }, id)).toEqual({ error: "A prompt needs some text." });
+  });
+
+  it("stops at the most it keeps", () => {
+    const full = Array.from({ length: MAX_PROMPTS }, (_, i) => ({ id: `f${i}`, title: `${i}`, text: `${i}` }));
+    expect(withPrompt(full, { text: "one more" }, id)).toMatchObject({ error: expect.stringContaining(`${MAX_PROMPTS}`) });
+    expect(withPrompt(full, { id: "f0", text: "changed" }, id)).not.toHaveProperty("error");
+  });
+
+  it("reads the saved ones from the file, dropping broken ones and repeats", () => {
+    const s = cleanSettings({ prompts: [{ id: "a", text: "Hi" }, { id: "b", text: " Hi " }, { id: "../x", text: "y" }, { text: "no id" }, "junk", { id: "c", title: "T", text: "Go" }] as never });
+    expect(s.prompts).toEqual([
+      { id: "a", title: "Hi", text: "Hi" },
+      { id: "c", title: "T", text: "Go" },
+    ]);
+    expect(cleanPrompts(undefined)).toEqual([]);
+    expect(cleanSettings({}).prompts).toEqual([]);
   });
 });
 

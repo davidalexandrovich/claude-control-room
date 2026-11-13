@@ -3995,3 +3995,81 @@ body.is-resizing .drawer {
   padding: 0 8px;
   font-size: 13px;
 }
+
+/* Saved prompts: chips over New session's first message, a console menu, and the list in Settings. */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.prompt-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.prompt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 64px;
+  overflow-y: auto;
+}
+.prompt-chip {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: rgba(122, 162, 255, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.prompt-chip:hover {
+  border-color: rgba(122, 162, 255, 0.55);
+  background: rgba(122, 162, 255, 0.16);
+}
+.prompt-item {
+  flex-direction: column;
+  gap: 2px;
+  max-width: 340px;
+}
+.prompt-item-title {
+  font-weight: 600;
+}
+.prompt-item-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.prompt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+.prompt-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prompt-add {
+  border-style: dashed;
+}
+.prompt-row > .input {
+  flex: none; /* .input grows along a row; in this column it would shrink to nothing */
+}
