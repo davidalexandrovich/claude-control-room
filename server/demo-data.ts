@@ -487,9 +487,9 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       defaultAccountLabel: "Work",
       newSessionAccount: "",
       prompts: [
-        { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity." },
-        { id: "pr", title: "Write the PR", text: "Write a short PR description for this branch:\n- what changed and why\n- how it was tested\n- anything a reviewer should look at first" },
-        { id: "plan", title: "Plan first", text: "Read the code involved and give me a short plan before changing anything. Ask if something is unclear." },
+        { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity.", model: "opus", effort: "high", mode: "auto" },
+        { id: "pr", title: "Write the PR", text: "Write a short PR description for this branch:\n- what changed and why\n- how it was tested\n- anything a reviewer should look at first", model: "sonnet", effort: "low", mode: "" },
+        { id: "plan", title: "Plan first", text: "Read the code involved and give me a short plan before changing anything. Ask if something is unclear.", model: "opus", effort: "xhigh", mode: "plan" },
       ],
     },
   };

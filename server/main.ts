@@ -258,7 +258,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
             addAccount?: { label?: unknown; dir?: unknown };
             renameAccount?: { label?: unknown; dir?: unknown };
             removeAccount?: string;
-            savePrompt?: { id?: unknown; title?: unknown; text?: unknown };
+            savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown };
             removePrompt?: unknown;
           }
         >(req);

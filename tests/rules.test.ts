@@ -18,7 +18,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
-import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, withPrompt } from "../shared/prompts.ts";
+import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -440,7 +440,7 @@ describe("saved prompts", () => {
   it("adds a prompt at the end and changes one in place, never two with the same text", () => {
     const one = withPrompt([], { text: "Plan first" }, id);
     if ("error" in one) throw new Error(one.error);
-    expect(one.saved).toEqual({ id: "p1", title: "Plan first", text: "Plan first" });
+    expect(one.saved).toEqual({ id: "p1", title: "Plan first", text: "Plan first", model: "", effort: "", mode: "" });
     const two = withPrompt(one.prompts, { title: "PR", text: "Write the PR" }, id);
     if ("error" in two) throw new Error(two.error);
     expect(two.prompts.map((p) => p.title)).toEqual(["Plan first", "PR"]);
@@ -452,8 +452,22 @@ describe("saved prompts", () => {
     expect(withPrompt(changed.prompts, { id: "p1", text: "  " }, id)).toEqual({ error: "A prompt needs some text." });
   });
 
+  it("keeps the model, effort and mode a prompt starts with, and drops ones Claude Code would not take", () => {
+    expect(promptTune({ model: "opus", effort: "xhigh", mode: "plan" })).toEqual({ model: "opus", effort: "xhigh", mode: "plan" });
+    expect(promptTune({ model: "rm -rf /", effort: "huge", mode: "yolo" })).toEqual({ model: "", effort: "", mode: "" });
+    const saved = withPrompt([], { text: "Plan it", model: "opus", effort: "high", mode: "plan" }, id);
+    if ("error" in saved) throw new Error(saved.error);
+    // A change that leaves them out keeps them; "" clears one.
+    const renamed = withPrompt(saved.prompts, { id: saved.saved.id, title: "Plan", text: "Plan it" }, id);
+    if ("error" in renamed) throw new Error(renamed.error);
+    expect(renamed.saved).toMatchObject({ title: "Plan", model: "opus", effort: "high", mode: "plan" });
+    const cleared = withPrompt(renamed.prompts, { id: saved.saved.id, text: "Plan it", mode: "" }, id);
+    if ("error" in cleared) throw new Error(cleared.error);
+    expect(cleared.saved).toMatchObject({ model: "opus", effort: "high", mode: "" });
+  });
+
   it("stops at the most it keeps", () => {
-    const full = Array.from({ length: MAX_PROMPTS }, (_, i) => ({ id: `f${i}`, title: `${i}`, text: `${i}` }));
+    const full = Array.from({ length: MAX_PROMPTS }, (_, i) => ({ id: `f${i}`, title: `${i}`, text: `${i}`, model: "", effort: "", mode: "" }));
     expect(withPrompt(full, { text: "one more" }, id)).toMatchObject({ error: expect.stringContaining(`${MAX_PROMPTS}`) });
     expect(withPrompt(full, { id: "f0", text: "changed" }, id)).not.toHaveProperty("error");
   });
@@ -461,8 +475,8 @@ describe("saved prompts", () => {
   it("reads the saved ones from the file, dropping broken ones and repeats", () => {
     const s = cleanSettings({ prompts: [{ id: "a", text: "Hi" }, { id: "b", text: " Hi " }, { id: "../x", text: "y" }, { text: "no id" }, "junk", { id: "c", title: "T", text: "Go" }] as never });
     expect(s.prompts).toEqual([
-      { id: "a", title: "Hi", text: "Hi" },
-      { id: "c", title: "T", text: "Go" },
+      { id: "a", title: "Hi", text: "Hi", model: "", effort: "", mode: "" },
+      { id: "c", title: "T", text: "Go", model: "", effort: "", mode: "" },
     ]);
     expect(cleanPrompts(undefined)).toEqual([]);
     expect(cleanSettings({}).prompts).toEqual([]);
