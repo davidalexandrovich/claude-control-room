@@ -1,6 +1,7 @@
 import { type MouseEvent, useSyncExternalStore } from "react";
 import { hostedName } from "../../shared/hosted.ts";
 import { ideName, openTarget, targetName } from "../../shared/ides.ts";
+import type { PromptTune } from "../../shared/prompts.ts";
 import type { ActionResult, Session, Snapshot, StatusKind } from "../../shared/types.ts";
 
 export type Filter = "all" | "attention" | "working" | "idle" | "inactive";
@@ -31,6 +32,7 @@ export interface State {
   menu: { pid: number; x: number; y: number } | null; // a session's right-click menu, where it opened
   renaming: number | null; // pid whose name is being edited, in its details when they show, else on its tile
   draft: string; // the first message New session opens with, as a saved prompt picked in the top bar leaves it
+  draftTune: PromptTune; // and the model, effort and mode that prompt asks for
 }
 
 /** How a session's console shows: in its details, folded to its bar, or filling the window. */
@@ -79,6 +81,7 @@ let state: State = {
   menu: null,
   renaming: null,
   draft: "",
+  draftTune: {},
 };
 const listeners = new Set<() => void>();
 

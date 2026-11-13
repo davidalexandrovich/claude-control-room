@@ -122,6 +122,7 @@ Keep the prompts you type again and again, and use one in a click.
   - Click a prompt to copy it, then paste it into any session, including one in VS Code or a Terminal tab.
   - **▶** starts a new session with it.
   - **Add or edit prompts** opens them in Settings.
+- **Give one a model, effort and mode:** in **Settings → Saved prompts**, under each prompt. Picking that prompt in **New session**, or with **▶**, sets them for you, for example Fable · xhigh · plan for a planning prompt. **Keep** leaves that one as **New session** has it. Your own defaults for the next session stay as they were. A prompt pasted into a running session doesn't change its model.
 - **Rename, change or delete:** in **Settings → Saved prompts**. A prompt with no name shows its first words. Changes save when you leave the field. Deleting takes a second click.
 
 They're saved on this Mac in `~/.claude-control-room/config.json`, and are the same for every account.

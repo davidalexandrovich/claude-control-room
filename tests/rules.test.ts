@@ -18,7 +18,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
-import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, withPrompt } from "../shared/prompts.ts";
+import { cleanPrompts, MAX_PROMPTS, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -449,6 +449,22 @@ describe("saved prompts", () => {
     expect(withPrompt(changed.prompts, { text: " Write the PR " }, id)).toEqual({ error: "That prompt is saved already, as “PR”." });
     expect(withPrompt(changed.prompts, { id: "p1", text: "Write the PR" }, id)).toMatchObject({ error: expect.stringContaining("saved already") });
     expect(withPrompt(changed.prompts, { id: "p1", text: "  " }, id)).toEqual({ error: "A prompt needs some text." });
+  });
+
+  it("keeps the model, effort and mode a prompt asks for, and only real ones", () => {
+    expect(promptTune({ model: "opus", effort: "xhigh", mode: "plan" })).toEqual({ model: "opus", effort: "xhigh", mode: "plan" });
+    expect(promptTune({ model: "", effort: "huge", mode: "yolo" })).toEqual({});
+    const one = withPrompt([], { title: "Plan", text: "Plan it", model: "fable", effort: "xhigh", mode: "plan" }, id);
+    if ("error" in one) throw new Error(one.error);
+    expect(one.saved).toMatchObject({ model: "fable", effort: "xhigh", mode: "plan" });
+    // A rename that says nothing of them keeps them; "" clears one.
+    const renamed = withPrompt(one.prompts, { id: one.saved.id, title: "Plan ticket", text: "Plan it" }, id);
+    if ("error" in renamed) throw new Error(renamed.error);
+    expect(renamed.saved).toMatchObject({ title: "Plan ticket", model: "fable", effort: "xhigh", mode: "plan" });
+    const cleared = withPrompt(renamed.prompts, { id: one.saved.id, text: "Plan it", mode: "" }, id);
+    if ("error" in cleared) throw new Error(cleared.error);
+    expect(cleared.saved).toEqual({ id: one.saved.id, title: "Plan it", text: "Plan it", model: "fable", effort: "xhigh" });
+    expect(cleanPrompts([{ id: "a", text: "Go", model: "sonnet", effort: "nope" }])).toEqual([{ id: "a", title: "Go", text: "Go", model: "sonnet" }]);
   });
 
   it("stops at the most it keeps", () => {
