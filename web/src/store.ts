@@ -2,6 +2,7 @@ import { type MouseEvent, useSyncExternalStore } from "react";
 import { hostedName } from "../../shared/hosted.ts";
 import { ideName, openTarget, targetName } from "../../shared/ides.ts";
 import type { ActionResult, Session, Snapshot, StatusKind } from "../../shared/types.ts";
+import { CARDS } from "./lib/cards.ts";
 
 export type Filter = "all" | "attention" | "working" | "idle" | "inactive";
 export type Panel = "settings" | "worktrees" | "new" | "keys" | "jump" | null;
@@ -21,7 +22,9 @@ export interface State {
   panel: Panel;
   filter: Filter;
   accountFilter: string; // whose sessions show: "" every account's, "default" the usual one's, else another's folder
-  overviewCollapsed: boolean;
+  ovHidden: string[]; // the cards at the top folded to chips (lib/overview.ts)
+  ovBefore: string[] | null; // the ones folded before ^ folded them all, to bring back
+  ovWidths: Record<string, number>; // dragged widths of the cards, by card
   toasts: Toast[];
   busy: Record<string, boolean>; // "pid:action" while a request runs
   typeInto: number | null; // pid whose console takes the keyboard when it shows
@@ -30,6 +33,7 @@ export interface State {
   consoleHeight: number | null; // dragged height of a console in its details; null fills the room
   menu: { pid: number; x: number; y: number } | null; // a session's right-click menu, where it opened
   renaming: number | null; // pid whose name is being edited, in its details when they show, else on its tile
+  draft: string; // the first message New session opens with, as a saved prompt picked in the top bar leaves it
 }
 
 /** How a session's console shows: in its details, folded to its bar, or filling the window. */
@@ -68,7 +72,10 @@ let state: State = {
   panel: null,
   filter: stored<Filter>("cr.filter", "all"),
   accountFilter: stored("cr.accountFilter", ""),
-  overviewCollapsed: VIEW.wallOnly || stored("cr.overviewCollapsed", false),
+  // The wall shows the cards as chips only. The old one-switch fold carries over as every card folded.
+  ovHidden: VIEW.wallOnly ? [...CARDS] : stored<string[]>("cr.ovHidden", stored("cr.overviewCollapsed", false) ? [...CARDS] : []),
+  ovBefore: VIEW.wallOnly ? null : stored<string[] | null>("cr.ovBefore", null),
+  ovWidths: VIEW.wallOnly ? {} : stored<Record<string, number>>("cr.ovWidths", {}),
   toasts: [],
   busy: {},
   typeInto: null,
@@ -77,6 +84,7 @@ let state: State = {
   consoleHeight: stored<number | null>("cr.consoleHeight", null),
   menu: null,
   renaming: null,
+  draft: "",
 };
 const listeners = new Set<() => void>();
 

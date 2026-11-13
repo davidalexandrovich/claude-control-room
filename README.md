@@ -78,6 +78,13 @@ No more searching through terminal tabs.
 <img src="docs/images/dashboard.png" alt="The dashboard: an overview on top and a wall of session tiles below">
 
 The overview on top counts your sessions, lists what needs you, and shows your pull requests and usage.
+You can arrange its cards the way you like:
+
+- **Minimize a card:** click its **−**. It becomes a small chip beside the other cards, showing what matters, such as `Needs you 2`. The chip turns amber while something needs you. Click a chip to bring its card back.
+- **Resize cards:** drag the gap between two cards to make one wider and the other narrower. Double-click a gap to go back to the usual widths.
+- **Minimize all of them:** click **^** in the top bar. The cards fold into one slim row of chips, so the wall, and the console in Focus, get the room. Click it again to bring back the cards you had open.
+
+Your arrangement is kept on this Mac.
 Below it, each session is a tile, like a monitor on a wall. Every tile has three parts:
 
 - **Top:** the name, the **rc** button, the task in plain English, and chips for the PR, the story and the branch.
@@ -118,6 +125,10 @@ Keep the prompts you type again and again, and use one in a click.
 - **Save one:** type it as the first message in **New session** and click **Save as prompt**, or add it in **Settings → Saved prompts**.
 - **Start with one:** in **New session** your prompts are chips above the first message. A click puts that prompt in the box, after anything you've already typed. Edit it if you like, then press `Enter`.
 - **Use one in a running session:** click the speech-bubble button on the console's bar and pick one. It's pasted at Claude Code's prompt but not sent, so you can change it first. Press `Enter` to send it.
+- **From the top bar:** click **Prompts**, next to **Notifications**.
+  - Click a prompt to copy it, then paste it into any session, including one in VS Code or a Terminal tab.
+  - **▶** starts a new session with it.
+  - **Add or edit prompts** opens them in Settings.
 - **Rename, change or delete:** in **Settings → Saved prompts**. A prompt with no name shows its first words. Changes save when you leave the field. Deleting takes a second click.
 
 They're saved on this Mac in `~/.claude-control-room/config.json`, and are the same for every account.
@@ -327,7 +338,7 @@ Then run **Developer: Restart Extension Host** in VS Code. Your terminals keep r
 | Watch one session on its own | Click the pop-out button on its tile. |
 | Continue a session on your phone | Click **rc** on its tile. Then open the Claude app and tap **Code**. |
 | Start a session and type to it | Click **New session**, pick a folder, click **Start session**. Type in its console. |
-| Reuse a prompt you type often | Save it with **Save as prompt** in **New session**. Then click its chip there, or pick it from the speech-bubble button on a console's bar. |
+| Reuse a prompt you type often | Save it with **Save as prompt** in **New session**. Then click its chip there, pick it from the speech-bubble button on a console's bar, or copy it from **Prompts** at the top. |
 | Use a second Claude account | Add it in **Settings → Claude accounts** and sign in. Then pick it under **Account** in **New session**. |
 | Open a terminal | Click **Terminal** at the top, or press `T`. A shell starts in the folder from **Settings → Start terminals in**, on a green tile with its screen. Click the tile to type in it. It keeps running when the app quits. With zsh, each command goes to your history as it runs, so `⌃R` finds it in every terminal. A terminal gets your own editor and keys, even when Control Room was started from a Claude Code session. |
 | See the changes of a session started here | Click **Open in …** in its details, or right-click it. Its folder opens in the IDE from Settings. |

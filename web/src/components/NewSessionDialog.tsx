@@ -5,7 +5,7 @@ import { DEFAULT_MODE, EFFORTS, MODELS, MODES } from "../../../shared/claude.ts"
 import type { ActionResult, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
-import { api, consoleName, remember, setState, stored, toast } from "../store.ts";
+import { api, consoleName, getState, remember, setState, stored, toast } from "../store.ts";
 import { PromptChips, SavePromptButton, usePrompts } from "./Prompts.tsx";
 
 const Console = lazy(() => import("./Console.tsx"));
@@ -21,7 +21,11 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const choices = useMemo(() => folderChoices(snap), []);
   const [cwd, setCwd] = useState(choices[0] ?? "");
   const [typed, setTyped] = useState(choices.length === 0 && !native);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => getState().draft);
+  // Taken once: the next New session opens empty again.
+  useEffect(() => {
+    if (getState().draft) setState({ draft: "" });
+  }, []);
   const area = useRef<HTMLTextAreaElement>(null);
   const prompts = usePrompts();
   // A saved prompt fills an empty message, or goes after what is there. The caret goes to the end, so Enter starts it.

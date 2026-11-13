@@ -1,6 +1,7 @@
-import { ArrowUpRight, Check, CircleCheck, Coffee, FolderGit2, Moon, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { ArrowUpRight, Check, CircleCheck, Coffee, FolderGit2, Minus, Moon, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { type CSSProperties, useRef } from "react";
 import type { RateWindow, Session, Snapshot, Usage } from "../../../shared/types.ts";
-import { duration, plural, resetLabel } from "../lib/format.ts";
+import { duration, resetLabel } from "../lib/format.ts";
 import {
   accountChoices,
   accountFilterOf,
@@ -17,6 +18,9 @@ import {
 } from "../store.ts";
 import { openUrl, PrChip } from "./Monitor.tsx";
 import { Meter, StatusOrb, Toggle, useNow } from "./Primitives.tsx";
+import { CARD_SIZE, CARDS, cardColumns, type CardId, dragGap } from "../lib/cards.ts";
+import { minimizeCard, restoreCard, setCardWidths } from "../lib/overview.ts";
+import { dragFrom } from "../lib/resize.ts";
 
 export const GROUPS: { id: Filter; label: string; kinds: string[]; color: string }[] = [
   { id: "working", label: "working", kinds: ["working", "background"], color: "var(--working)" },
@@ -327,38 +331,121 @@ function MacCard({ snap }: { snap: Snapshot }) {
   );
 }
 
+const CARD_NAMES: Record<CardId, string> = { sessions: "Sessions", attention: "Needs you", prs: "Pull requests", usage: "Claude usage", mac: "This Mac" };
+
+/** What a folded card still tells: a short value on its chip, the rest in its tip. Needs you stays loud while it counts. */
+function chipOf(id: CardId, snap: Snapshot, sessions: Session[]): { value: string; tip: string; alert?: boolean } {
+  switch (id) {
+    case "sessions": {
+      const counts = GROUPS.map((g) => sessions.filter((s) => g.kinds.includes(s.activity.kind)).length);
+      return { value: `${sessions.length} · ${counts[0]} working`, tip: GROUPS.map((g, i) => `${counts[i]} ${g.label}`).join(", ") };
+    }
+    case "attention": {
+      const list = sessions.filter(needsYou);
+      return { value: String(list.length), alert: list.length > 0, tip: list.length ? list.map((s) => s.name).join(", ") : "No session is waiting for you." };
+    }
+    case "prs": {
+      const prs = [...new Map(sessions.filter((s) => s.pr).map((s) => [s.pr!.url, s.pr!])).values()];
+      const open = prs.filter((p) => p.state === "OPEN");
+      const failing = open.filter((p) => p.checks === "failing").length;
+      return { value: `${open.length} open`, tip: `${open.length} open, ${failing} failing, ${prs.filter((p) => p.state === "MERGED").length} merged` };
+    }
+    case "usage": {
+      const pct = (w: RateWindow | null) => (w ? `${Math.round(w.usedPercent)}%` : "—");
+      const all = [{ label: snap.settings.defaultAccountLabel, usage: snap.usage }, ...snap.otherAccounts.map((a) => ({ label: a.label, usage: a.usage }))];
+      return {
+        value: all.length === 1 ? `${pct(snap.usage.fiveHour)} · week ${pct(snap.usage.sevenDay)}` : all.map((a) => `${a.label} ${pct(a.usage.fiveHour)}`).join(" · "),
+        tip: all.map((a) => `${a.label}: 5-hour ${pct(a.usage.fiveHour)}, week ${pct(a.usage.sevenDay)}`).join(" · "),
+      };
+    }
+    case "mac":
+      return { value: snap.power.sleepDisabled ? "Awake" : "Sleeps", tip: snap.power.sleepDisabled ? "Always awake is on" : "Always awake is off" };
+  }
+}
+
+/** The folded cards, as chips: beside the open ones, or in one slim row once every card is folded. A click opens one. */
+export function CardChips({ snap, ids, below = false }: { snap: Snapshot; ids: readonly CardId[]; below?: boolean }) {
+  const sessions = snap.sessions.filter((s) => !s.terminal);
+  return (
+    <>
+      {ids.map((id) => {
+        const c = chipOf(id, snap, sessions);
+        return (
+          <button
+            key={id}
+            type="button"
+            className={`ov-chip ${c.alert ? "is-alert" : ""}`}
+            data-tip={`${c.tip}. Click to show the card.`}
+            data-tip-side={below ? "bottom" : undefined}
+            onClick={() => restoreCard(id)}
+          >
+            <span className="ov-chip-name">{CARD_NAMES[id]}</span>
+            <b>{c.value}</b>
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
 export function Overview({ snap }: { snap: Snapshot }) {
-  const collapsed = useStore((s) => s.overviewCollapsed);
+  const hidden = useStore((s) => s.ovHidden);
+  const widths = useStore((s) => s.ovWidths);
+  const grid = useRef<HTMLDivElement>(null);
   // Counts of Claude Code sessions: a terminal is not one.
   const sessions = snap.sessions.filter((s) => !s.terminal);
-  if (collapsed) {
-    const n = sessions.filter(needsYou).length;
-    const working = sessions.filter((s) => s.activity.kind === "working").length;
+  const visible = CARDS.filter((id) => !hidden.includes(id));
+  const folded = CARDS.filter((id) => hidden.includes(id));
+  if (!visible.length) {
     return (
-      <div className="overview-strip">
-        <span>{plural(sessions.length, "session")}</span>
-        <span className="strip-dot" style={{ background: "var(--working)" }} /> {working} working
-        <span className="strip-dot" style={{ background: "var(--approval)" }} /> {n} need you
-        {snap.usage.fiveHour && <span className="muted">· 5-hour {Math.round(snap.usage.fiveHour.usedPercent)}%</span>}
-        {snap.usage.sevenDay && <span className="muted">· week {Math.round(snap.usage.sevenDay.usedPercent)}%</span>}
-        {snap.otherAccounts.map(
-          (a) =>
-            a.usage.fiveHour && (
-              <span key={a.dir} className="muted">
-                · {a.label} 5-hour {Math.round(a.usage.fiveHour.usedPercent)}%
-              </span>
-            ),
-        )}
+      <div className="ov-dock" aria-label="Minimized cards">
+        <CardChips snap={snap} ids={CARDS} below />
       </div>
     );
   }
+
+  const card = (id: CardId) => {
+    switch (id) {
+      case "sessions":
+        return <SessionsCard sessions={sessions} />;
+      case "attention":
+        return <AttentionCard sessions={sessions} />;
+      case "prs":
+        return <PullRequestsCard sessions={sessions} />;
+      case "usage":
+        return <UsageCard snap={snap} />;
+      case "mac":
+        return <MacCard snap={snap} />;
+    }
+  };
+  // The gap after card i moves the edge between it and the next: those two trade width, the rest keep theirs.
+  const startDrag = (e: React.PointerEvent, i: number) => {
+    const slots = [...(grid.current?.querySelectorAll<HTMLElement>(":scope > .ov-slot") ?? [])];
+    const measured: Record<string, number> = Object.fromEntries(visible.map((id, k) => [id, slots[k]?.getBoundingClientRect().width ?? 0]));
+    const [l, r] = [visible[i], visible[i + 1]];
+    dragFrom(e, "col-resize", (dx) => {
+      const [wl, wr] = dragGap({ w: measured[l], min: CARD_SIZE[l].min }, { w: measured[r], min: CARD_SIZE[r].min }, dx);
+      setCardWidths({ ...widths, ...measured, [l]: wl, [r]: wr });
+    });
+  };
   return (
-    <div className="overview">
-      <SessionsCard sessions={sessions} />
-      <AttentionCard sessions={sessions} />
-      <PullRequestsCard sessions={sessions} />
-      <UsageCard snap={snap} />
-      <MacCard snap={snap} />
+    <div ref={grid} className="overview" style={{ "--ov-cols": cardColumns(visible, widths, folded.length > 0) } as CSSProperties}>
+      {visible.map((id, i) => (
+        <div key={id} className={`ov-slot ov-slot-${id}`}>
+          {card(id)}
+          <button type="button" className="ov-min" aria-label={`Minimize ${CARD_NAMES[id]}`} data-tip="Minimize to a chip" onClick={() => minimizeCard(id)}>
+            <Minus size={13} />
+          </button>
+          {i < visible.length - 1 && (
+            <div className="ov-gap" role="separator" aria-orientation="vertical" data-tip="Drag to resize · double-click for the usual widths" onPointerDown={(e) => startDrag(e, i)} onDoubleClick={() => setCardWidths(null)} />
+          )}
+        </div>
+      ))}
+      {folded.length > 0 && (
+        <div className="ov-tray" aria-label="Minimized cards">
+          <CardChips snap={snap} ids={folded} />
+        </div>
+      )}
     </div>
   );
 }
