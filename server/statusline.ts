@@ -402,6 +402,9 @@ export async function latestUsages(list: Home[] = homes()): Promise<Usage[]> {
   for (const f of files) {
     if (out.size === list.length) break;
     const tap = await readTap(f.id);
+    // A session that reports no limits says nothing about the account's: one on another model, such as Ollama's, or one
+    // before its first reply. The report before it still holds.
+    if (!tap?.fiveHour && !tap?.sevenDay) continue;
     // A report from before Claude Code named the transcript is the usual account's.
     const home = tap?.transcriptPath ? homeOf(tap.transcriptPath, list) : list[0];
     if (home && !out.has(home)) out.set(home, { fiveHour: live(tap?.fiveHour ?? null), sevenDay: live(tap?.sevenDay ?? null), observedAt: f.at });

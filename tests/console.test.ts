@@ -315,6 +315,8 @@ describe("other Claude accounts", () => {
     write(join(taps, "home-1.json"), tap("home-1", join(personal.dir, "projects", "-h", "home-1.jsonl"), 10), now - 30_000);
     // The newest report is from an account no longer in Settings: no account's.
     write(join(taps, "gone-1.json"), tap("gone-1", join(home, ".claude-old", "projects", "-g", "gone-1.jsonl"), 99), now);
+    // A newer session that reports no limits, such as one on an Ollama model, leaves the account's as they were.
+    write(join(taps, "work-2.json"), { session_id: "work-2", transcript_path: join(home, ".claude", "projects", "-w", "work-2.jsonl") }, now);
     const [work, mine] = await latestUsages(homes([personal]));
     expect(work.fiveHour?.usedPercent).toBe(40);
     expect(mine.fiveHour?.usedPercent).toBe(10);

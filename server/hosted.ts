@@ -5,7 +5,7 @@ import { existsSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { isEffort, isMode, isModel } from "../shared/claude.ts";
-import { type AgentTool, promptArg } from "../shared/agents.ts";
+import { type AgentTool, agentScript, promptArg } from "../shared/agents.ts";
 import { isHostedName } from "../shared/hosted.ts";
 import type { AccountRef, ActionResult } from "../shared/types.ts";
 import { APP_DIR } from "./paths.ts";
@@ -199,7 +199,7 @@ export async function startAgent(cwd: string, tool: AgentTool, prompt: string | 
   await writeConf();
   const name = `cra-${randomBytes(4).toString("hex")}`;
   const args = tool.takesPrompt && prompt ? [promptArg(prompt)] : [];
-  const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", shell, "-lic", tool.command, tool.bin, ...args], 10_000);
+  const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", shell, "-lic", agentScript(tool.command), tool.bin, ...args], 10_000);
   if (!started.ok) return { ok: false, message: (started.stderr || started.stdout).trim() || `tmux did not start ${tool.label}.` };
   await tmux(["set-option", "-t", name, "@cr_agent", tool.id], 2_000);
   if (prompt) await tmux(["set-option", "-t", name, "@cr_prompt", prompt.replace(/[\t\n\r]+/g, " ").slice(0, 2_000)], 2_000);

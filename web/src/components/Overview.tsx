@@ -1,6 +1,6 @@
 import { ArrowUpRight, Check, CircleCheck, Coffee, FolderGit2, Minus, Moon, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import { type CSSProperties, useRef } from "react";
-import type { RateWindow, Session, Snapshot, Usage } from "../../../shared/types.ts";
+import type { AgentUsage, RateWindow, Session, Snapshot, Usage } from "../../../shared/types.ts";
 import { duration, resetLabel } from "../lib/format.ts";
 import {
   accountChoices,
@@ -244,24 +244,95 @@ function AccountUsage(props: { label: string; email: string | null; plan: string
   );
 }
 
+/** Where to see an agent's usage when it does not report it here: Codex before its first reply, and the others always. */
+const USAGE_ELSEWHERE: Record<string, { text: string; tip: string; url?: string }> = {
+  codex: { text: "after its first reply", tip: "Codex reports its limits with each reply. Open your usage page on chatgpt.com", url: "https://chatgpt.com/codex/settings/usage" },
+  gemini: { text: "/stats in its console", tip: "Gemini keeps its quota on Google's side: type /stats in a Gemini console to see it" },
+  cursor: { text: "cursor.com", tip: "Cursor keeps your usage on its site. Open your dashboard on cursor.com", url: "https://cursor.com/dashboard" },
+  kimi: { text: "/usage in its console", tip: "Kimi Code keeps its quota on its side: type /usage in a Kimi console to see it" },
+  ollama: { text: "local, no limits", tip: "Models on this Mac have no limits. Cloud models' usage is on ollama.com", url: "https://ollama.com/settings" },
+};
+
+/** The built-in agents you have, with their limits when they report them. */
+function agentRows(snap: Snapshot): { id: string; label: string; usage: AgentUsage | null }[] {
+  return snap.setup.agents
+    .map((a) => ({ id: a.id, label: a.label, installed: a.installed, usage: snap.agentUsage.find((u) => u.id === a.id) ?? null }))
+    .filter((a) => USAGE_ELSEWHERE[a.id] && (a.installed || a.usage));
+}
+
+/** The agents that report their limits get lines like Claude's; the others share one line that says where to look. */
+function AgentUsageRows({ snap, now }: { snap: Snapshot; now: number }) {
+  const rows = agentRows(snap);
+  if (!rows.length) return null;
+  const elsewhere = rows.filter((r) => !r.usage);
+  return (
+    <div className="usage-agents">
+      {rows.map(({ id, label, usage }) =>
+        usage ? (
+          <div key={id}>
+            <div className="usage-account">
+              <b>{label}</b>
+              {usage.plan && <span className="plan-pill">{usage.plan}</span>}
+              {USAGE_ELSEWHERE[id].url && (
+                <button type="button" className="icon-btn usage-agent-link" aria-label={`Open ${label} usage`} data-tip={`Open your ${label} usage page`} onClick={() => openUrl(USAGE_ELSEWHERE[id].url!)}>
+                  <ArrowUpRight size={14} />
+                </button>
+              )}
+            </div>
+            {usage.windows.length ? usage.windows.map((w) => <UsageLine key={w.minutes} label={w.label} w={w} now={now} />) : <UsageLine label="Limits" w={null} now={now} />}
+          </div>
+        ) : null,
+      )}
+      {elsewhere.length > 0 && (
+        <div className="usage-elsewhere">
+          {elsewhere.map(({ id, label }) => {
+            const where = USAGE_ELSEWHERE[id];
+            return (
+              <span key={id} data-tip={where.tip}>
+                <b>{label}</b>{" "}
+                {where.url ? (
+                  <button type="button" className="mb-link" onClick={() => openUrl(where.url!)}>
+                    {where.text} <ArrowUpRight size={11} />
+                  </button>
+                ) : (
+                  <span className="mono">{where.text}</span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UsageCard({ snap }: { snap: Snapshot }) {
   const now = useNow();
   const busy = useStore((s) => s.busy);
   const { usage, account, setup, otherAccounts } = snap;
+  // Beside other agents, Claude's limits get a name of their own.
+  const agents = agentRows(snap).length > 0;
+  const claude = (label: string) => (agents ? `Claude · ${label}` : label);
   return (
     <section className="card card-usage">
       <h3 className="card-title">
-        Claude usage {!otherAccounts.length && account.plan && <span className="plan-pill">{account.plan}</span>}
+        {agents ? "Usage" : "Claude usage"} {!otherAccounts.length && !agents && account.plan && <span className="plan-pill">{account.plan}</span>}
       </h3>
       {setup.statusLine === "installed" && otherAccounts.length > 0 ? (
         <>
-          <AccountUsage label={snap.settings.defaultAccountLabel} email={account.email} plan={account.plan} usage={usage} connected now={now} />
+          <AccountUsage label={claude(snap.settings.defaultAccountLabel)} email={account.email} plan={account.plan} usage={usage} connected now={now} />
           {otherAccounts.map((a) => (
-            <AccountUsage key={a.dir} label={a.label} email={a.loggedIn ? a.email : null} plan={a.plan} usage={a.usage} connected={a.connected} now={now} />
+            <AccountUsage key={a.dir} label={claude(a.label)} email={a.loggedIn ? a.email : null} plan={a.plan} usage={a.usage} connected={a.connected} now={now} />
           ))}
         </>
       ) : setup.statusLine === "installed" ? (
         <>
+          {agents && (
+            <div className="usage-account">
+              <b>Claude</b>
+              {account.plan && <span className="plan-pill">{account.plan}</span>}
+            </div>
+          )}
           <UsageLine label="5-hour" w={usage.fiveHour} now={now} />
           <UsageLine label="Week" w={usage.sevenDay} now={now} />
         </>
@@ -292,6 +363,7 @@ function UsageCard({ snap }: { snap: Snapshot }) {
           <ArrowUpRight size={15} />
         </button>
       </div>
+      <AgentUsageRows snap={snap} now={now} />
     </section>
   );
 }
@@ -332,7 +404,7 @@ function MacCard({ snap }: { snap: Snapshot }) {
   );
 }
 
-const CARD_NAMES: Record<CardId, string> = { sessions: "Sessions", attention: "Needs you", prs: "Pull requests", usage: "Claude usage", mac: "This Mac" };
+const CARD_NAMES: Record<CardId, string> = { sessions: "Sessions", attention: "Needs you", prs: "Pull requests", usage: "Usage", mac: "This Mac" };
 
 /** What a folded card still tells: a short value on its chip, the rest in its tip. Needs you stays loud while it counts. */
 function chipOf(id: CardId, snap: Snapshot, sessions: Session[]): { value: string; tip: string; alert?: boolean } {
@@ -354,9 +426,16 @@ function chipOf(id: CardId, snap: Snapshot, sessions: Session[]): { value: strin
     case "usage": {
       const pct = (w: RateWindow | null) => (w ? `${Math.round(w.usedPercent)}%` : "—");
       const all = [{ label: snap.settings.defaultAccountLabel, usage: snap.usage }, ...snap.otherAccounts.map((a) => ({ label: a.label, usage: a.usage }))];
+      // Other agents' tightest limit: the window they are closest to running out of.
+      const agents = snap.agentUsage
+        .filter((u) => u.windows.length)
+        .map((u) => ({ label: u.label, top: Math.max(...u.windows.map((w) => w.usedPercent)), tip: u.windows.map((w) => `${w.label.toLowerCase()} ${pct(w)}`).join(", ") }));
       return {
-        value: all.length === 1 ? `${pct(snap.usage.fiveHour)} · week ${pct(snap.usage.sevenDay)}` : all.map((a) => `${a.label} ${pct(a.usage.fiveHour)}`).join(" · "),
-        tip: all.map((a) => `${a.label}: 5-hour ${pct(a.usage.fiveHour)}, week ${pct(a.usage.sevenDay)}`).join(" · "),
+        value: [
+          all.length === 1 ? `${pct(snap.usage.fiveHour)} · week ${pct(snap.usage.sevenDay)}` : all.map((a) => `${a.label} ${pct(a.usage.fiveHour)}`).join(" · "),
+          ...agents.map((a) => `${a.label} ${Math.round(a.top)}%`),
+        ].join(" · "),
+        tip: [...all.map((a) => `${a.label}: 5-hour ${pct(a.usage.fiveHour)}, week ${pct(a.usage.sevenDay)}`), ...agents.map((a) => `${a.label}: ${a.tip}`)].join(" · "),
       };
     }
     case "mac":

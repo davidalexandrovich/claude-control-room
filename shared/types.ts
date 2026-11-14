@@ -162,6 +162,22 @@ export interface Usage {
   observedAt: number | null; // when a session last reported these numbers
 }
 
+/** Another coding agent's limits, as it last reported them; Codex keeps them in its session files. */
+export interface AgentUsage {
+  id: string; // "codex"
+  label: string;
+  plan: string | null;
+  windows: AgentWindow[]; // shortest first; empty once they all reset
+  observedAt: number; // when it last reported them
+}
+
+export interface AgentWindow {
+  label: string; // "5-hour", "Week"
+  minutes: number;
+  usedPercent: number;
+  resetsAt: number; // epoch ms
+}
+
 export interface Account {
   email: string | null;
   orgName: string | null;
@@ -236,6 +252,7 @@ export interface Snapshot {
   at: number;
   sessions: Session[];
   usage: Usage;
+  agentUsage: AgentUsage[]; // the other coding agents that report their limits
   account: Account;
   otherAccounts: OtherAccount[]; // in the order of Settings
   power: PowerState;

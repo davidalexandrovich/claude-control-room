@@ -13,6 +13,7 @@ import { ghReady, openSince, prByNumber, prForBranch, refreshRepo } from "./gith
 import { type HostedPane, hostedName, hostedPanes, isAgentName, isTerminalName, screenLines, tmuxReady } from "./hosted.ts";
 import { agentActivity, allAgents } from "../shared/agents.ts";
 import { agentChoices } from "./agents.ts";
+import { agentUsages } from "./agent-usage.ts";
 import { ideOf, installedIdes, noteConnectedIdes } from "./ide.ts";
 import { HOME, SUMMARIZER_CWD } from "./paths.ts";
 import { powerState } from "./power.ts";
@@ -253,11 +254,12 @@ export class Monitor {
       connected: connections[i + 1].statusLine === "installed" && connections[i + 1].hooks,
     }));
     const windows = bridgeConnected();
-    const agentList = await agentChoices();
+    const [agentList, agentUsage] = await Promise.all([agentChoices(), agentUsages()]);
     const snapshot: Snapshot = {
       at: Date.now(),
       sessions: list,
       usage: usages[0],
+      agentUsage,
       account: currentAccount(),
       otherAccounts,
       power: powerState(),

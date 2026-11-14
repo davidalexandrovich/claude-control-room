@@ -143,18 +143,25 @@ function UseLine({ label, w, now }: { label: string; w: RateWindow | null; now: 
 
 function Usage({ snap }: { snap: Snapshot }) {
   const now = useNow();
-  const { usage, account, setup } = snap;
+  const { usage, account, setup, agentUsage } = snap;
+  // Beside other agents' limits, Claude's get a name of their own.
+  const agents = agentUsage.length > 0;
   return (
     <section className="mb-usage">
       <h4 className="mb-label">
-        Claude usage {account.plan && <span className="plan-pill">{account.plan}</span>}
+        {agents ? "Usage" : "Claude usage"} {!agents && account.plan && <span className="plan-pill">{account.plan}</span>}
         <button type="button" className="mb-link" onClick={() => openUrl("https://claude.ai/settings/usage", { account: "" })}>
           claude.ai <ArrowUpRight size={12} />
         </button>
       </h4>
       {setup.statusLine === "installed" ? (
         <>
-          {snap.otherAccounts.length > 0 && <div className="mb-use-account">{snap.settings.defaultAccountLabel}</div>}
+          {(snap.otherAccounts.length > 0 || agents) && (
+            <div className="mb-use-account">
+              {agents ? (snap.otherAccounts.length ? `Claude · ${snap.settings.defaultAccountLabel}` : "Claude") : snap.settings.defaultAccountLabel}{" "}
+              {agents && account.plan && <span className="plan-pill">{account.plan}</span>}
+            </div>
+          )}
           <UseLine label="5-hour" w={usage.fiveHour} now={now} />
           <UseLine label="Week" w={usage.sevenDay} now={now} />
           {snap.otherAccounts
@@ -162,7 +169,7 @@ function Usage({ snap }: { snap: Snapshot }) {
             .map((a) => (
               <Fragment key={a.dir}>
                 <div className="mb-use-account">
-                  {a.label} {a.plan && <span className="plan-pill">{a.plan}</span>}
+                  {agents ? `Claude · ${a.label}` : a.label} {a.plan && <span className="plan-pill">{a.plan}</span>}
                 </div>
                 <UseLine label="5-hour" w={a.usage.fiveHour} now={now} />
                 <UseLine label="Week" w={a.usage.sevenDay} now={now} />
@@ -172,6 +179,14 @@ function Usage({ snap }: { snap: Snapshot }) {
       ) : (
         <p className="mb-note">Connect Claude Code in the dashboard to see your limits.</p>
       )}
+      {agentUsage.map((u) => (
+        <Fragment key={u.id}>
+          <div className="mb-use-account">
+            {u.label} {u.plan && <span className="plan-pill">{u.plan}</span>}
+          </div>
+          {u.windows.length ? u.windows.map((w) => <UseLine key={w.minutes} label={w.label} w={w} now={now} />) : <UseLine label="Limits" w={null} now={now} />}
+        </Fragment>
+      ))}
     </section>
   );
 }
