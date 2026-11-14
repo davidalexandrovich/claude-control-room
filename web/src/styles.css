@@ -4234,3 +4234,17 @@ body.is-resizing .drawer {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Coding agents in Settings, and an agent's tile, which is a terminal tile with a status. */
+.agent-row .agent-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-form .agent-label {
+  flex: 0 0 150px;
+}

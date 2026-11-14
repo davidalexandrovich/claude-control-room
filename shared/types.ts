@@ -1,4 +1,5 @@
 // Types shared by the server and the web UI. The server produces every value; the UI only reads.
+import type { CustomAgent } from "./agents.ts";
 import type { IdeId } from "./ides.ts";
 
 export type StatusKind =
@@ -146,6 +147,7 @@ export interface Session {
   hosted: boolean; // runs in Control Room's own tmux, so its console works here
   remoteUrl: string | null; // claude.ai link while Remote Control is on
   terminal: TerminalInfo | null; // set for a terminal: then pid is its shell's, and sessionId its tmux name
+  agent: { id: string; label: string } | null; // set for another coding agent, such as Codex: a terminal that runs it
   account: AccountRef | null; // the other Claude account it runs on; null for the usual one
 }
 
@@ -193,6 +195,14 @@ export interface SetupState {
   tmuxReady: boolean; // needed to start sessions here
   ghReady: boolean;
   shortcutReady: boolean;
+  agents: AgentChoice[]; // the coding agents besides Claude Code that New session offers
+}
+
+export interface AgentChoice {
+  id: string;
+  label: string;
+  installed: boolean; // its program is on your PATH
+  takesPrompt: boolean; // false: it starts empty, and you type the first message in its console
 }
 
 export interface Settings {
@@ -209,6 +219,7 @@ export interface Settings {
   defaultAccountLabel: string; // the name of that one here: "Default" until you give it another, such as "Work"
   newSessionAccount: string; // the folder of the account New session starts on: "" for the one in ~/.claude
   prompts: SavedPrompt[]; // your own prompts, to start a session with or paste into one
+  agents: CustomAgent[]; // coding agents of your own for New session, besides the built-in ones
 }
 
 export interface SavedPrompt {

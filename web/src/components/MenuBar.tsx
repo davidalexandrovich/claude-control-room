@@ -4,7 +4,7 @@ import type { RateWindow, Session, Snapshot } from "../../../shared/types.ts";
 import { playChime } from "../lib/alerts.ts";
 import { duration, plural } from "../lib/format.ts";
 import { native, openWallWindow } from "../lib/native.ts";
-import { act, api, needsYou, useOpenName, useStore } from "../store.ts";
+import { act, api, isShell, needsYou, useOpenName, useStore } from "../store.ts";
 import { ApprovalCard, lastWords, openUrl, PrChip, QuestionCard, RemoteButton, taskLine } from "./Monitor.tsx";
 import { GROUPS } from "./Overview.tsx";
 import { Meter, Spinner, StatusOrb, useNow } from "./Primitives.tsx";
@@ -272,7 +272,7 @@ export function MenuBarPanel() {
     );
 
   // The menu bar lists Claude Code sessions; terminals stay in the app.
-  const sessions = snap.sessions.filter((s) => !s.terminal);
+  const sessions = snap.sessions.filter((s) => !isShell(s));
   const asks = sessions.filter(needsYou).sort((a, b) => a.activity.since - b.activity.since);
   const rest = sessions.filter((s) => !needsYou(s));
   const active = rest.filter((s) => s.activity.kind !== "inactive");

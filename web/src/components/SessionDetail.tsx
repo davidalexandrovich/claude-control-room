@@ -5,7 +5,7 @@ import type { ChatLine, Session } from "../../../shared/types.ts";
 import { duration, folderName, money, startedLabel } from "../lib/format.ts";
 import { withKey } from "../lib/keys.ts";
 import { popoutSession } from "../lib/native.ts";
-import { act, api, consoleName, getState, openInIde, setState, useIdeName, useOpenName, useStore } from "../store.ts";
+import { act, api, closeName, consoleName, getState, openInIde, setState, useIdeName, useOpenName, useStore } from "../store.ts";
 import { AccountChip, ApprovalCard, NameEditor, openUrl, PrChip, QuestionCard, RemoteButton, RenameButton } from "./Monitor.tsx";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 import { TuneChips } from "./Tuning.tsx";
@@ -257,8 +257,8 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
           <PictureInPicture2 size={15} />
         </button>
       )}
-      <button type="button" className="btn btn-danger-ghost detail-close-btn" data-tip={withKey(s.terminal ? "Close the terminal" : "Close the session", "close")} onClick={() => setState({ closing: s.pid })}>
-        <X size={15} /> {s.terminal ? "Close terminal…" : "Close…"}
+      <button type="button" className="btn btn-danger-ghost detail-close-btn" data-tip={withKey(`Close ${s.terminal ? closeName(s) : "the session"}`, "close")} onClick={() => setState({ closing: s.pid })}>
+        <X size={15} /> {s.terminal ? `Close ${closeName(s)}…` : "Close…"}
       </button>
     </div>
   );

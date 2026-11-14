@@ -118,6 +118,16 @@ The bar above the console works like a window's title bar. **A↓** and **A↑**
 Drag the left edge of the details panel to make it wider or narrower. Double-click the edge for the usual width.
 The console has edges and corners of its own: drag the top or bottom for its height, a side for its width, a corner for both. Double-click an edge to reset it.
 
+### Other coding agents
+
+Codex, Gemini, Cursor Agent and Kimi Code can run here too, next to Claude Code. Pick one under **Agent** in **New session**. Only the ones installed on your Mac can be picked. **Settings → Coding agents** lists each one, and shows the install command for any that's missing.
+
+- **How it runs:** in a console here, the same as in a terminal tab. Your login shell starts it, so it finds the same PATH as your terminal. Sign in to each agent in its console the first time.
+- **The first message** goes over as one argument. Kimi Code starts empty, so type the first message in its console.
+- **Its tile** shows its screen, the same way a terminal's does. **Working** means its screen moves. **Stopped · check it** means its screen has stood still for a few seconds after working. It may be done, or asking you something, so you get a desktop notice to look. **Inactive** comes after the same idle time as for sessions.
+- **What only Claude Code gets:** approvals, model, effort, mode, usage and plain-English summaries all come from Claude Code's own files. For another agent, answer what it asks, and change its settings, in its console.
+- **Your own agent:** in **Settings → Coding agents**, add a name and the command, as you'd type it, for example `aider --model sonnet --message {prompt}`. `{prompt}` is where the first message goes. It's passed as one argument, never run as shell code.
+
 ### Saved prompts
 
 Keep the prompts you type again and again, and use one in a click.

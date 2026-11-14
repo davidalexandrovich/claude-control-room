@@ -8,6 +8,7 @@ import { isEffort, isMode, modeName, MODELS } from "../shared/claude.ts";
 import { keyBetween } from "./order.ts";
 import { ideName, isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { withPrompt } from "../shared/prompts.ts";
+import { withAgent } from "../shared/agents.ts";
 import type { ActionResult, Session, Settings, Snapshot, WorktreeReport } from "../shared/types.ts";
 import { demoClosePlan, DEMO_DEFAULT_COUNT, demoSnapshot, demoWorktrees } from "./demo-data.ts";
 import { body, refusal, send, serveStatic } from "./http.ts";
@@ -164,7 +165,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/terminal":
         return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${snap.settings.terminalFolder}.` });
       case "/api/settings": {
-        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown }>(req);
+        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown; addAgent?: { label?: unknown; command?: unknown }; removeAgent?: unknown }>(req);
         const patch: Partial<Settings> = {};
         for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
@@ -183,6 +184,19 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         if (typeof b.removePrompt === "string") {
           patch.prompts = snap.settings.prompts.filter((p) => p.id !== b.removePrompt);
           message = "Prompt deleted";
+        }
+        if (b.addAgent) {
+          const r = withAgent(snap.settings.agents, b.addAgent, () => randomUUID().replaceAll("-", "").slice(0, 8));
+          if ("error" in r) return send(res, 200, { ok: false, message: r.error });
+          patch.agents = r.agents;
+          message = `Added ${r.agents[r.agents.length - 1].label}`;
+          const a = r.agents[r.agents.length - 1];
+          snap = { ...snap, setup: { ...snap.setup, agents: [...snap.setup.agents, { id: a.id, label: a.label, installed: true, takesPrompt: a.command.includes("{prompt}") }] } };
+        }
+        if (typeof b.removeAgent === "string") {
+          patch.agents = snap.settings.agents.filter((a) => a.id !== b.removeAgent);
+          snap = { ...snap, setup: { ...snap.setup, agents: snap.setup.agents.filter((a) => a.id !== b.removeAgent) } };
+          message = "Agent removed";
         }
         snap = { ...snap, settings: { ...snap.settings, ...patch } };
         publish();

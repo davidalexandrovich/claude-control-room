@@ -90,6 +90,9 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     return snap.otherAccounts.some((a) => a.dir === first) ? first : "";
   });
   const chosen = snap.otherAccounts.find((a) => a.dir === account) ?? null;
+  // Claude Code, or another coding agent such as Codex. Claude Code each time: one try of another must not stick.
+  const [tool, setTool] = useState("claude");
+  const agent = tool === "claude" ? null : (snap.setup.agents.find((a) => a.id === tool) ?? null);
   const [starting, setStarting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null); // a console that must be answered before the session shows
   const open = useRef(true);
@@ -132,7 +135,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const start = async () => {
     if (!canStart) return;
     setStarting(true);
-    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
+    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", agent ? { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), tool } : { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
       (err: Error) => ({ ok: false, message: err.message }) as ActionResult & { pid?: number; name?: string },
     );
     // Closed while it started: the session runs, and shows in the list, but nothing jumps at you.
@@ -175,7 +178,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
         ) : (
           <>
             <h2 id="new-title">New session</h2>
-            <p className="dialog-sub">Claude Code starts in Control Room. You type to it in its console here, no terminal needed.</p>
+            <p className="dialog-sub">{agent?.label ?? "Claude Code"} starts in Control Room. You type to it in its console here, no terminal needed.</p>
 
             <label className="field">
               <span className="field-label">Folder</span>
@@ -204,7 +207,27 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               </div>
             </label>
 
-            {snap.otherAccounts.length > 0 && (
+            {snap.setup.agents.length > 0 && (
+              <label className="field">
+                <span className="field-label">Agent</span>
+                <select className="select" value={tool} onChange={(e) => setTool(e.target.value)}>
+                  <option value="claude">Claude Code</option>
+                  {snap.setup.agents.map((a) => (
+                    <option key={a.id} value={a.id} disabled={!a.installed}>
+                      {a.installed ? a.label : `${a.label} (not installed)`}
+                    </option>
+                  ))}
+                </select>
+                {agent && (
+                  <span className="field-hint">
+                    {agent.label} runs in a console here, as in a terminal: you answer what it asks there. Its tile shows Working while its screen moves.
+                    {!agent.takesPrompt && " It starts empty: type the first message in its console."}
+                  </span>
+                )}
+              </label>
+            )}
+
+            {!agent && snap.otherAccounts.length > 0 && (
               <label className="field">
                 <span className="field-label">Account</span>
                 <select className="select" value={account} onChange={(e) => setAccount(e.target.value)}>
@@ -272,44 +295,48 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               />
             </div>
 
-            <div className="field-trio">
-              <label className="field">
-                <span className="field-label">Model</span>
-                <select className="select" value={tune.model} onChange={(e) => setTuned({ model: e.target.value })}>
-                  <option value="">Your default</option>
-                  {MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="field-label">Effort</span>
-                <select className="select" value={tune.effort} onChange={(e) => setTuned({ effort: e.target.value })}>
-                  <option value="">Your default</option>
-                  {EFFORTS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="field-label">Mode</span>
-                <select className="select" value={tune.mode} onChange={(e) => setTuned({ mode: e.target.value })}>
-                  {MODES.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <p className="field-hint">
-              {setBy && <>Set by “{setBy}”. </>}
-              {MODES.find((m) => m.id === tune.mode)?.hint}. Change any of these later from the session's card.
-            </p>
+            {!agent && (
+              <>
+                <div className="field-trio">
+                  <label className="field">
+                    <span className="field-label">Model</span>
+                    <select className="select" value={tune.model} onChange={(e) => setTuned({ model: e.target.value })}>
+                      <option value="">Your default</option>
+                      {MODELS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Effort</span>
+                    <select className="select" value={tune.effort} onChange={(e) => setTuned({ effort: e.target.value })}>
+                      <option value="">Your default</option>
+                      {EFFORTS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Mode</span>
+                    <select className="select" value={tune.mode} onChange={(e) => setTuned({ mode: e.target.value })}>
+                      {MODES.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <p className="field-hint">
+                  {setBy && <>Set by “{setBy}”. </>}
+                  {MODES.find((m) => m.id === tune.mode)?.hint}. Change any of these later from the session's card.
+                </p>
+              </>
+            )}
 
             {!snap.setup.tmuxReady && (
               <p className="field-warn">

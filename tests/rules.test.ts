@@ -18,6 +18,8 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
+import { agentActivity, cleanAgents, customTool, promptArg, withAgent } from "../shared/agents.ts";
+import { isAgentName, isHostedName } from "../shared/hosted.ts";
 import { cleanPrompts, fillSlots, MAX_PROMPTS, pickPrompt, promptSlots, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
@@ -419,6 +421,42 @@ describe("Claude Code settings merge", () => {
     expect(tapScript("/their/line.sh")).toContain(`printf '%s' "$input" | /their/line.sh`);
     expect(tapScript(null)).toContain("rate_limits.five_hour");
     expect(HOOK_BODY).toContain("exit 0");
+  });
+});
+
+describe("other coding agents", () => {
+  it("runs your own agent with the first message as one argument, never as shell code", () => {
+    const t = customTool({ id: "x-1a2b3c4d", label: "Aider", command: "aider --model sonnet --message {prompt}" });
+    expect(t).toMatchObject({ bin: "aider", command: 'aider --model sonnet --message "$1"', takesPrompt: true });
+    expect(customTool({ id: "x-1a2b3c4d", label: "Goose", command: "goose session" }).takesPrompt).toBe(false);
+  });
+
+  it("adds an agent with a name and a command, never two of one name, and reads them back from the file", () => {
+    expect(withAgent([], { label: "  Aider ", command: "aider\n--yes" }, () => "1a2b3c4d")).toEqual({ agents: [{ id: "x-1a2b3c4d", label: "Aider", command: "aider --yes" }] });
+    expect(withAgent([], { label: "codex", command: "codex" }, () => "1a2b3c4d")).toEqual({ error: "There is an agent called codex already." });
+    expect(withAgent([], { label: "Aider", command: " " }, () => "1a2b3c4d")).toEqual({ error: "An agent needs a name and a command." });
+    expect(cleanAgents([{ id: "x-1a2b3c4d", label: "Aider", command: "aider" }, { id: "../x", label: "Bad", command: "rm" }, { id: "x-0000aaaa", label: "", command: "x" }])).toEqual([
+      { id: "x-1a2b3c4d", label: "Aider", command: "aider" },
+    ]);
+  });
+
+  it("reads an agent's state off its screen: moving is working, still is done for now, long still is inactive", () => {
+    const now = 1_000_000;
+    expect(agentActivity(now - 1_000, false, now, 600_000)).toEqual({ kind: "working", label: "Working" });
+    expect(agentActivity(now - 10_000, false, now, 600_000)).toEqual({ kind: "idle", label: "Ready" });
+    expect(agentActivity(now - 10_000, true, now, 600_000)).toEqual({ kind: "idle", label: "Stopped · check it" });
+    expect(agentActivity(now - 700_000, true, now, 600_000).kind).toBe("inactive");
+  });
+
+  it("never lets a first message pass as an option", () => {
+    expect(promptArg("- review this")).toBe(" - review this");
+    expect(promptArg("review -v output")).toBe("review -v output");
+  });
+
+  it("knows an agent's tmux session from Claude Code's and a terminal's", () => {
+    expect(isHostedName("cra-1a2b3c4d") && isAgentName("cra-1a2b3c4d")).toBe(true);
+    expect(isAgentName("crt-1a2b3c4d")).toBe(false);
+    expect(isHostedName("crx-1a2b3c4d")).toBe(false);
   });
 });
 

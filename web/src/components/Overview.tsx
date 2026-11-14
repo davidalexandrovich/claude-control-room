@@ -7,6 +7,7 @@ import {
   accountFilterOf,
   act,
   matchesAccount,
+  isShell,
   needsYou,
   openMenu,
   openSession,
@@ -365,7 +366,7 @@ function chipOf(id: CardId, snap: Snapshot, sessions: Session[]): { value: strin
 
 /** The folded cards, as chips: beside the open ones, or in one slim row once every card is folded. A click opens one. */
 export function CardChips({ snap, ids, below = false }: { snap: Snapshot; ids: readonly CardId[]; below?: boolean }) {
-  const sessions = snap.sessions.filter((s) => !s.terminal);
+  const sessions = snap.sessions.filter((s) => !isShell(s));
   return (
     <>
       {ids.map((id) => {
@@ -393,7 +394,7 @@ export function Overview({ snap }: { snap: Snapshot }) {
   const widths = useStore((s) => s.ovWidths);
   const grid = useRef<HTMLDivElement>(null);
   // Counts of Claude Code sessions: a terminal is not one.
-  const sessions = snap.sessions.filter((s) => !s.terminal);
+  const sessions = snap.sessions.filter((s) => !isShell(s));
   const visible = CARDS.filter((id) => !hidden.includes(id));
   const folded = CARDS.filter((id) => hidden.includes(id));
   if (!visible.length) {

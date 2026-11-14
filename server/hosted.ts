@@ -5,6 +5,7 @@ import { existsSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
 import { isEffort, isMode, isModel } from "../shared/claude.ts";
+import { type AgentTool, promptArg } from "../shared/agents.ts";
 import { isHostedName } from "../shared/hosted.ts";
 import type { AccountRef, ActionResult } from "../shared/types.ts";
 import { APP_DIR } from "./paths.ts";
@@ -37,7 +38,7 @@ export function tmuxArgs(...args: string[]): string[] {
   return ["-L", SOCKET, ...args];
 }
 
-export { hostedName, isHostedName, isTerminalName } from "../shared/hosted.ts";
+export { hostedName, isAgentName, isHostedName, isTerminalName } from "../shared/hosted.ts";
 
 // The variables of whoever started Control Room (Electron, npm, or a Claude Code session) must not reach a new
 // session: a Claude Code that sees CLAUDECODE thinks it runs inside another one, and one that inherits
@@ -74,20 +75,22 @@ export interface HostedPane {
   pid: number; // what the pane runs: Claude Code's shell, or a terminal's shell
   cwd: string; // the folder that program is in now
   command: string; // the program in front, such as "zsh" or "npm"
+  agent: string; // the coding agent it was started with, such as "codex"; "" for the rest
+  prompt: string; // the first message it was started with, if any
 }
 
 /** The sessions that run on Control Room's tmux server now, one pane each; null when tmux could not say. */
 export async function hostedPanes(): Promise<HostedPane[] | null> {
   if (!tmuxReady()) return [];
-  const format = "#{session_name}\t#{session_created}\t#{pane_pid}\t#{pane_current_path}\t#{pane_current_command}";
+  const format = "#{session_name}\t#{session_created}\t#{pane_pid}\t#{pane_current_path}\t#{pane_current_command}\t#{@cr_agent}\t#{@cr_prompt}";
   const out = await tmux(["list-panes", "-a", "-F", format], 2_000);
   // No server means nothing runs here; any other failure says nothing either way.
   if (!out.ok) return /no server running|error connecting/i.test(out.stderr) ? [] : null;
   const panes = new Map<string, HostedPane>();
   for (const line of out.stdout.split("\n")) {
-    const [name, created, pid, cwd, command] = line.split("\t");
+    const [name, created, pid, cwd, command, agent, ...prompt] = line.split("\t");
     if (!isHostedName(name) || panes.has(name)) continue;
-    panes.set(name, { name, createdAt: Number(created) * 1000, pid: Number(pid), cwd: cwd ?? "", command: command ?? "" });
+    panes.set(name, { name, createdAt: Number(created) * 1000, pid: Number(pid), cwd: cwd ?? "", command: command ?? "", agent: agent ?? "", prompt: prompt.join("\t") });
   }
   return [...panes.values()];
 }
@@ -182,6 +185,24 @@ export async function startShell(cwd: string, shell = process.env.SHELL || "/bin
   const name = `crt-${randomBytes(4).toString("hex")}`;
   const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", ...shellArgs(shell)], 10_000);
   if (!started.ok) return { ok: false, message: (started.stderr || started.stdout).trim() || "tmux did not start the terminal." };
+  return { ok: true, message: "Started", name };
+}
+
+/**
+ * Starts another coding agent, such as Codex, in a new tmux session: your login shell runs it, so it is found where
+ * your terminal finds it. The first message goes over as one argument, never read by the shell. Which agent it is,
+ * and that message, stay on the session for its tile.
+ */
+export async function startAgent(cwd: string, tool: AgentTool, prompt: string | null, shell = process.env.SHELL || "/bin/zsh"): Promise<ActionResult & { name?: string }> {
+  if (!tmuxReady()) return { ok: false, message: "Control Room needs tmux for this. Install it: brew install tmux" };
+  if (typeof cwd !== "string" || !isAbsolute(cwd) || !existsSync(cwd) || !statSync(cwd).isDirectory()) return { ok: false, message: "Pick a folder that exists." };
+  await writeConf();
+  const name = `cra-${randomBytes(4).toString("hex")}`;
+  const args = tool.takesPrompt && prompt ? [promptArg(prompt)] : [];
+  const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", shell, "-lic", tool.command, tool.bin, ...args], 10_000);
+  if (!started.ok) return { ok: false, message: (started.stderr || started.stdout).trim() || `tmux did not start ${tool.label}.` };
+  await tmux(["set-option", "-t", name, "@cr_agent", tool.id], 2_000);
+  if (prompt) await tmux(["set-option", "-t", name, "@cr_prompt", prompt.replace(/[\t\n\r]+/g, " ").slice(0, 2_000)], 2_000);
   return { ok: true, message: "Started", name };
 }
 
