@@ -163,7 +163,11 @@ export function ApprovalCard({ s }: { s: Session }) {
       </div>
       {!reachable && (
         <div className="ask-hint">
-          {s.ide === "vscode" ? "Install the VS Code helper (Settings) to answer from here." : "Control Room can type only into tmux and VS Code terminals."}
+          {s.desktopUrl
+            ? "It runs in the Claude app. Answer it there."
+            : s.ide === "vscode"
+              ? "Install the VS Code helper (Settings) to answer from here."
+              : "Control Room can type only into tmux and VS Code terminals."}
         </div>
       )}
     </div>
@@ -346,9 +350,11 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
           </IconButton>
         </div>
         <RemoteButton s={s} />
-        <IconButton label="Close session…" keys="close" tone="danger" onClick={() => setState({ closing: s.pid })}>
-          <X size={15} />
-        </IconButton>
+        {!s.desktopUrl && (
+          <IconButton label="Close session…" keys="close" tone="danger" onClick={() => setState({ closing: s.pid })}>
+            <X size={15} />
+          </IconButton>
+        )}
       </header>
 
       <p className="mon-task">{taskLine(s)}</p>

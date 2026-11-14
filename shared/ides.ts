@@ -47,18 +47,20 @@ export function ideName(id: IdeId): string {
 }
 
 /**
- * Where "Open in …" takes a session: a session that runs in Control Room to its console, tmux to Terminal, a session
+ * Where "Open in …" takes a session: a session that runs in Control Room to its console, one the Claude desktop app runs
+ * to that session in the app, tmux to Terminal, a session
  * in an IDE's terminal to that IDE, the rest to the Settings choice.
  */
-export type OpenTarget = { kind: "console" } | { kind: "tmux" } | { kind: "ide"; ide: IdeId };
+export type OpenTarget = { kind: "console" } | { kind: "desktop" } | { kind: "tmux" } | { kind: "ide"; ide: IdeId };
 
-export function openTarget(s: { tmux: string | null; ide: IdeId | null; hosted?: boolean }, chosen: IdeId): OpenTarget {
+export function openTarget(s: { tmux: string | null; ide: IdeId | null; hosted?: boolean; desktopUrl?: string | null }, chosen: IdeId): OpenTarget {
   if (s.hosted) return { kind: "console" };
+  if (s.desktopUrl) return { kind: "desktop" };
   if (s.tmux) return { kind: "tmux" };
   return { kind: "ide", ide: s.ide ?? chosen };
 }
 
 /** The word after "Open in", "Answer in" and "Reply in". */
 export function targetName(t: OpenTarget): string {
-  return t.kind === "console" ? "console" : t.kind === "tmux" ? "Terminal" : ideName(t.ide);
+  return t.kind === "console" ? "console" : t.kind === "desktop" ? "Claude" : t.kind === "tmux" ? "Terminal" : ideName(t.ide);
 }

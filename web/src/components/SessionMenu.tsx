@@ -284,7 +284,7 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
           <Item icon={<AppWindow size={14} />} label="Open artifact" tip={s.artifacts[0].title ?? undefined} onClick={run(() => openUrl(s.artifacts[0].url, { pid: s.pid }))} />
         )}
         <Item icon={<FolderOpen size={14} />} label="Show folder in Finder" keys="finder" onClick={run(() => showInFinder(s))} />
-        {!s.hosted && tmuxReady && (
+        {!s.hosted && !s.desktopUrl && tmuxReady && (
           <Item
             icon={<MonitorDown size={14} />}
             label="Move here"
@@ -314,7 +314,9 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
       </div>
 
       <div className="ctx-group">
-        <Item icon={<X size={14} />} label={s.terminal ? "Close terminal…" : "Close session…"} keys="close" danger onClick={run(() => setState({ closing: s.pid }))} />
+        {!s.desktopUrl && (
+          <Item icon={<X size={14} />} label={s.terminal ? "Close terminal…" : "Close session…"} keys="close" danger onClick={run(() => setState({ closing: s.pid }))} />
+        )}
       </div>
     </div>,
     document.body,

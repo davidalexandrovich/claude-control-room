@@ -166,7 +166,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/settings": {
         const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown }>(req);
         const patch: Partial<Settings> = {};
-        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
+        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel", "includeDesktop"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;

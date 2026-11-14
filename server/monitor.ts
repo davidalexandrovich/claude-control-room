@@ -31,6 +31,7 @@ export interface SessionFile extends StatusFile {
   cwd: string;
   kind: string;
   entrypoint: string;
+  hostSessionId: string | null; // the Claude desktop app's id for the session, when the app runs it
   name: string | null;
   nameSource: string | null;
   tmux: string | null;
@@ -62,6 +63,7 @@ async function readHomeSessions(home: Home): Promise<SessionFile[]> {
           startedAt: Number(d.startedAt ?? 0),
           kind: String(d.kind ?? ""),
           entrypoint: String(d.entrypoint ?? ""),
+          hostSessionId: typeof d.hostSessionId === "string" ? d.hostSessionId : null,
           name: d.name ?? null,
           nameSource: d.nameSource ?? null,
           status: d.status ?? null,
@@ -140,6 +142,16 @@ function hostIde(pid: number, procs: Map<number, ProcRow>): IdeId | null {
     cur = procs.get(cur.ppid);
   }
   return null;
+}
+
+// The Claude desktop app's own id for a session, as its claude://code/continue link takes it.
+const DESKTOP_ID = /^local_[A-Za-z0-9-]{1,64}$/;
+
+/** The link that opens a session in the Claude desktop app, or null when the app does not run it. */
+export function desktopUrl(f: Pick<SessionFile, "entrypoint" | "hostSessionId">): string | null {
+  if (f.entrypoint !== "claude-desktop") return null;
+  const id = f.hostSessionId && DESKTOP_ID.test(f.hostSessionId) ? f.hostSessionId : "last";
+  return `claude://code/continue?session=${encodeURIComponent(id)}`;
 }
 
 function fallbackSummary(input: { story: string | null; note: string | null; title: string | null; firstPrompt: string | null }): Summary {
@@ -222,7 +234,11 @@ export class Monitor {
       const p = procs.get(f.pid);
       if (!p || !isClaudeComm(p.comm) || f.kind !== "interactive") return false;
       if (f.cwd.startsWith(SUMMARIZER_CWD)) return false;
-      return f.entrypoint === "cli" || (cfg.includeIdePanel && f.entrypoint === "claude-vscode");
+      return (
+        f.entrypoint === "cli" ||
+        (cfg.includeIdePanel && f.entrypoint === "claude-vscode") ||
+        (cfg.includeDesktop && f.entrypoint === "claude-desktop")
+      );
     });
     this.files = new Map(live.map((f) => [f.pid, f]));
     for (const pid of [...this.transcripts.keys()]) if (!this.files.has(pid)) this.transcripts.delete(pid);
@@ -421,6 +437,7 @@ export class Monitor {
       repoName: git ? basename(git.mainRoot) : basename(cwd),
       ide: f.tmux ? null : hostIde(f.pid, procs),
       vscodeLinked: windowFor(shellPid) !== null,
+      desktopUrl: desktopUrl(f),
       transcriptPath: path,
       tmux: f.tmux,
       hosted: this.hosted.some((p) => p.name === hostedName(f.tmux)),
@@ -479,6 +496,7 @@ export class Monitor {
       repoName: git ? basename(git.mainRoot) : basename(p.cwd),
       ide: null,
       vscodeLinked: false,
+      desktopUrl: null,
       transcriptPath: null,
       tmux: p.name,
       hosted: true,

@@ -52,6 +52,7 @@ async function sendKeys(s: Session, text: string, tmuxKey: string | null): Promi
     const r = await sendText(s.shellPid, text);
     return { ok: r.ok, message: r.message };
   }
+  if (s.desktopUrl) return { ok: false, message: "It runs in the Claude app. Answer it there (Open in Claude)." };
   return { ok: false, message: "This terminal can't receive keys from the dashboard. Open the session instead." };
 }
 
@@ -102,6 +103,7 @@ export async function answerQuestion(monitor: Monitor, pid: number, option: numb
 export async function startRemoteControl(monitor: Monitor, pid: number): Promise<ActionResult> {
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
+  if (s.desktopUrl) return { ok: false, message: `${IN_DESKTOP} Use Remote Control from the app.` };
   if (!s.tmux && !s.vscodeLinked) {
     const helper = s.ide === "vscode" ? ", or install the VS Code helper (Settings)" : "";
     return { ok: false, message: `Control Room can't type in this terminal. Type /rc in the session${helper}.` };
@@ -132,9 +134,11 @@ export async function startRemoteControl(monitor: Monitor, pid: number): Promise
 }
 
 const MOVE_HINT = "Move it here first (Move here, in its details).";
+const IN_DESKTOP = "It runs in the Claude app.";
 
 /** Why the session's model, effort or mode can't change from here right now, or null when it can. */
 async function tuneRefusal(s: Session, what: "model" | "effort" | "mode"): Promise<string | null> {
+  if (s.desktopUrl) return `${IN_DESKTOP} Change its ${what} there.`;
   if (what === "mode" ? !s.tmux : !s.tmux && !s.vscodeLinked) {
     // The mode moves one Shift+Tab at a time, so Control Room has to see the screen to know where it is.
     return what === "mode" && s.vscodeLinked
@@ -293,6 +297,10 @@ export async function focusSession(monitor: Monitor, pid: number): Promise<Actio
   const target = openTarget(s, chosenIde(settings().ide));
   // The page opens the console itself; this answers a menu or a keyboard shortcut that asked the server.
   if (target.kind === "console") return { ok: true, message: "Its console is in Control Room." };
+  if (target.kind === "desktop") {
+    launch("open", [s.desktopUrl!]);
+    return { ok: true, message: "Opened in Claude" };
+  }
   if (target.kind === "tmux") {
     launch("open", ["-a", "Terminal"]);
     return { ok: true, message: `It runs in tmux (${(s.tmux ?? "").split(":")[0]}).` };
@@ -389,6 +397,8 @@ export async function moveSession(monitor: Monitor, pid: number): Promise<Action
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
   if (s.hosted) return { ok: true, message: "It already runs in Control Room.", pid };
+  // The app owns the session: resuming it here would leave the app's tab talking to nothing.
+  if (s.desktopUrl) return { ok: false, message: `${IN_DESKTOP} Keep using it there.` };
   // A second click, or a second window, must not resume the same conversation twice.
   if (moving.has(pid)) return { ok: false, message: "It is moving already." };
   moving.add(pid);
@@ -520,6 +530,8 @@ export async function closeSession(monitor: Monitor, pid: number, req: CloseRequ
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
   if (!req.close) return { ok: false, message: "Nothing to do." };
+  // Stopping its process from here would cut the app off from it; the app closes its own sessions.
+  if (s.desktopUrl) return { ok: false, message: `${IN_DESKTOP} Close or archive it there.` };
   // A terminal ends with its tmux session, and whatever runs in it with it.
   if (s.terminal) {
     if (!(await stopConsole(s.sessionId))) return { ok: false, message: "The terminal did not close." };

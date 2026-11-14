@@ -145,6 +145,9 @@ export function SettingsPanel({ snap }: { snap: Snapshot }) {
           <Line title="Show VS Code panel sessions" text="Sessions in the Claude Code side panel of VS Code, not only terminal ones.">
             <Toggle label="Show VS Code panel sessions" on={cfg.includeIdePanel} onChange={(on) => save({ includeIdePanel: on })} />
           </Line>
+          <Line title="Show Claude app sessions" text="Sessions in the Code tab of the Claude desktop app. Open in Claude jumps to the session there.">
+            <Toggle label="Show Claude app sessions" on={cfg.includeDesktop} onChange={(on) => save({ includeDesktop: on })} />
+          </Line>
 
           <PromptsSection prompts={cfg.prompts} />
 

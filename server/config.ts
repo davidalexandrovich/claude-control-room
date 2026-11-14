@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiSummaries: true,
   inactiveAfterMinutes: 120,
   includeIdePanel: false,
+  includeDesktop: true,
   ide: "vscode",
   terminalFolder: HOME,
   layout: "fit",

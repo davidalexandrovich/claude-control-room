@@ -10,6 +10,7 @@ export type What = "model" | "effort" | "mode";
 
 /** Why `what` can't change from here right now, or null. The server checks again; this says it before you pick. */
 export function blocked(s: Session, what: What): string | null {
+  if (s.desktopUrl) return `It runs in the Claude app. Change its ${what} there.`;
   if (what === "mode" ? !s.tmux : !s.tmux && !s.vscodeLinked) {
     return what === "mode" && s.vscodeLinked
       ? "Press Shift+Tab in its terminal, or move it here (Move here, in its details)."

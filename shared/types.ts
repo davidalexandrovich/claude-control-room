@@ -141,6 +141,7 @@ export interface Session {
   repoName: string; // e.g. "storefront"
   ide: IdeId | null; // the IDE whose terminal runs the session
   vscodeLinked: boolean; // the VS Code helper can reach this terminal
+  desktopUrl: string | null; // set for a session the Claude desktop app runs: the claude:// link that opens it there
   transcriptPath: string | null;
   tmux: string | null;
   hosted: boolean; // runs in Control Room's own tmux, so its console works here
@@ -201,6 +202,7 @@ export interface Settings {
   aiSummaries: boolean;
   inactiveAfterMinutes: number;
   includeIdePanel: boolean;
+  includeDesktop: boolean; // sessions the Claude desktop app runs (its Code tab)
   ide: IdeId; // where "Open in …" opens a session
   terminalFolder: string; // where a new terminal starts
   layout: "fit" | "comfortable" | "focus";

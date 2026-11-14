@@ -179,7 +179,9 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
   useEffect(() => () => void (getState().consoleView === "max" && setState({ consoleView: "normal" })), []);
   const where = tmuxName
     ? "Control Room"
-    : s.tmux
+    : s.desktopUrl
+      ? "the Claude app"
+      : s.tmux
       ? `tmux ${s.tmux.split(":")[0]}`
       : s.ide
         ? `${ideName(s.ide)} terminal${s.vscodeLinked ? " (linked)" : ""}`
@@ -380,7 +382,7 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
 
         {!tmuxName && (
           <>
-            <MoveHere s={s} />
+            {!s.desktopUrl && <MoveHere s={s} />}
             <h4 className="detail-section">Conversation</h4>
             <Conversation pid={s.pid} />
           </>

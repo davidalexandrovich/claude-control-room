@@ -263,7 +263,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           }
         >(req);
         const patch: Partial<Settings> = {};
-        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
+        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel", "includeDesktop"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;
