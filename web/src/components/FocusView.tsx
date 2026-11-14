@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import type { Session } from "../../../shared/types.ts";
 import { useDragOrder } from "../lib/dragOrder.ts";
 import { duration } from "../lib/format.ts";
-import { needsYou, openMenu, setState, useStore } from "../store.ts";
+import { isShell, needsYou, openMenu, setState, useStore } from "../store.ts";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 import { SessionDetail } from "./SessionDetail.tsx";
 
@@ -32,14 +32,14 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
             layout
             key={s.sessionId}
             type="button"
-            className={`focus-row st-${s.activity.kind} ${s.terminal ? "is-terminal" : ""} ${current?.pid === s.pid ? "is-on" : ""} ${menuPid === s.pid ? "has-menu" : ""}`}
+            className={`focus-row st-${s.activity.kind} ${isShell(s) ? "is-terminal" : ""} ${current?.pid === s.pid ? "is-on" : ""} ${menuPid === s.pid ? "has-menu" : ""}`}
             onClick={() => setState({ selected: s.pid })}
             onContextMenu={(e) => openMenu(e, s.pid)}
             data-pid={s.pid}
             draggable
           >
             <span className="mon-key">{i < 9 ? i + 1 : ""}</span>
-            {s.terminal ? <SquareTerminal size={12} className="term-mark" aria-label="Terminal" /> : <StatusOrb kind={s.activity.kind} size={9} />}
+            {isShell(s) ? <SquareTerminal size={12} className="term-mark" aria-label="Terminal" /> : <StatusOrb kind={s.activity.kind} size={9} />}
             <span className="focus-row-text">
               <span className="focus-row-name">{s.name}</span>
               <span className="focus-row-status">

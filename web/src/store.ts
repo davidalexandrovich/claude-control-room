@@ -219,14 +219,24 @@ export function setAccountFilter(id: string): void {
   remember("cr.accountFilter", id);
 }
 
+/** A terminal with your shell in it, not a coding agent such as Codex, which counts and alerts like a session. */
+export function isShell(s: Session): boolean {
+  return !!s.terminal && !s.agent;
+}
+
+/** What closing it is called: a terminal, or the agent it runs. */
+export function closeName(s: Session): string {
+  return s.agent ? s.agent.label : s.terminal ? "terminal" : "session";
+}
+
 /** "default" is every session not on another account: a terminal too. */
 export function matchesAccount(s: Session, account: string): boolean {
   return !account || (account === "default" ? !s.account : s.account?.dir === account);
 }
 
 export function matchesFilter(s: Session, f: Filter): boolean {
-  // The filters sort Claude Code by what it does; a terminal shows under All.
-  if (s.terminal) return f === "all";
+  // The filters sort Claude Code and the other agents by what they do; a terminal shows under All.
+  if (isShell(s)) return f === "all";
   switch (f) {
     case "all":
       return true;

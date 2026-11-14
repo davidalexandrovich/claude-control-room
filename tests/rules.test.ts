@@ -18,7 +18,9 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
-import { cleanPrompts, fillSlots, MAX_PROMPTS, promptSlots, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
+import { agentActivity, cleanAgents, customTool, promptArg, withAgent } from "../shared/agents.ts";
+import { isAgentName, isHostedName } from "../shared/hosted.ts";
+import { cleanPrompts, fillSlots, MAX_PROMPTS, pickPrompt, promptSlots, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
@@ -422,6 +424,42 @@ describe("Claude Code settings merge", () => {
   });
 });
 
+describe("other coding agents", () => {
+  it("runs your own agent with the first message as one argument, never as shell code", () => {
+    const t = customTool({ id: "x-1a2b3c4d", label: "Aider", command: "aider --model sonnet --message {prompt}" });
+    expect(t).toMatchObject({ bin: "aider", command: 'aider --model sonnet --message "$1"', takesPrompt: true });
+    expect(customTool({ id: "x-1a2b3c4d", label: "Goose", command: "goose session" }).takesPrompt).toBe(false);
+  });
+
+  it("adds an agent with a name and a command, never two of one name, and reads them back from the file", () => {
+    expect(withAgent([], { label: "  Aider ", command: "aider\n--yes" }, () => "1a2b3c4d")).toEqual({ agents: [{ id: "x-1a2b3c4d", label: "Aider", command: "aider --yes" }] });
+    expect(withAgent([], { label: "codex", command: "codex" }, () => "1a2b3c4d")).toEqual({ error: "There is an agent called codex already." });
+    expect(withAgent([], { label: "Aider", command: " " }, () => "1a2b3c4d")).toEqual({ error: "An agent needs a name and a command." });
+    expect(cleanAgents([{ id: "x-1a2b3c4d", label: "Aider", command: "aider" }, { id: "../x", label: "Bad", command: "rm" }, { id: "x-0000aaaa", label: "", command: "x" }])).toEqual([
+      { id: "x-1a2b3c4d", label: "Aider", command: "aider" },
+    ]);
+  });
+
+  it("reads an agent's state off its screen: moving is working, still is done for now, long still is inactive", () => {
+    const now = 1_000_000;
+    expect(agentActivity(now - 1_000, false, now, 600_000)).toEqual({ kind: "working", label: "Working" });
+    expect(agentActivity(now - 10_000, false, now, 600_000)).toEqual({ kind: "idle", label: "Ready" });
+    expect(agentActivity(now - 10_000, true, now, 600_000)).toEqual({ kind: "idle", label: "Stopped · check it" });
+    expect(agentActivity(now - 700_000, true, now, 600_000).kind).toBe("inactive");
+  });
+
+  it("never lets a first message pass as an option", () => {
+    expect(promptArg("- review this")).toBe(" - review this");
+    expect(promptArg("review -v output")).toBe("review -v output");
+  });
+
+  it("knows an agent's tmux session from Claude Code's and a terminal's", () => {
+    expect(isHostedName("cra-1a2b3c4d") && isAgentName("cra-1a2b3c4d")).toBe(true);
+    expect(isAgentName("crt-1a2b3c4d")).toBe(false);
+    expect(isHostedName("crx-1a2b3c4d")).toBe(false);
+  });
+});
+
 describe("saved prompts", () => {
   let n = 0;
   const id = () => `p${++n}`;
@@ -473,6 +511,26 @@ describe("saved prompts", () => {
       "review https://github.com/o/r/pull/1 with the agent.\nread <shortcut URL or description>, then https://github.com/o/r/pull/1 again. a < b > c, <div>x</div>",
     );
     expect(promptSlots("no slots here")).toEqual([]);
+  });
+
+  it("puts a picked prompt in place of the one picked before, keeping what you typed ahead of it", () => {
+    const review = { id: "r", text: "review <PR URL>" };
+    const plan = { id: "p", text: "plan <ticket>" };
+    let st = pickPrompt("", null, review);
+    expect(st.message).toBe("review <PR URL>");
+    st = pickPrompt(st.message, st.picked, plan); // going over the chips swaps the prompt; its slots go with it
+    expect(st.message).toBe("plan <ticket>");
+    expect(promptSlots(st.message)).toEqual(["ticket"]);
+    st = pickPrompt(st.message, st.picked, plan); // the same chip again takes it out
+    expect(st).toEqual({ message: "", picked: null });
+
+    st = pickPrompt("my own words", null, review);
+    expect(st.message).toBe("my own words\n\nreview <PR URL>");
+    st = pickPrompt(st.message, st.picked, plan);
+    expect(st.message).toBe("my own words\n\nplan <ticket>");
+    // Changed by hand, the message is all yours: the next chip goes after it.
+    st = pickPrompt(st.message + " for sc-1", st.picked, review);
+    expect(st.message).toBe("my own words\n\nplan <ticket> for sc-1\n\nreview <PR URL>");
   });
 
   it("stops at the most it keeps", () => {

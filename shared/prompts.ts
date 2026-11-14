@@ -85,3 +85,24 @@ export function promptSlots(text: string): string[] {
 export function fillSlots(text: string, values: Record<string, string>): string {
   return text.replace(SLOT, (slot, name: string) => values[name]?.trim() || slot);
 }
+
+/** Pure: a picked prompt after what you typed yourself, a blank line between. */
+export function joinPrompt(base: string, text: string): string {
+  return base.trim() ? `${base.trimEnd()}\n\n${text}` : text;
+}
+
+/**
+ * Pure: the message and picked prompt after a chip is clicked. Another chip takes the place of the one picked before,
+ * keeping what you typed ahead of it; the same chip again takes it out. Once you change the message yourself, a chip
+ * goes after all of it, so nothing you wrote is lost.
+ */
+export function pickPrompt<P extends { id: string; text: string }>(
+  message: string,
+  picked: { prompt: P; base: string } | null,
+  p: P,
+): { message: string; picked: { prompt: P; base: string } | null } {
+  const untouched = picked !== null && message === joinPrompt(picked.base, picked.prompt.text);
+  if (untouched && picked.prompt.id === p.id) return { message: picked.base, picked: null };
+  const base = untouched ? picked.base : message;
+  return { message: joinPrompt(base, p.text), picked: { prompt: p, base } };
+}

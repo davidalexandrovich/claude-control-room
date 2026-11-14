@@ -1,8 +1,8 @@
-import { FolderOpen, Plus, TerminalSquare } from "lucide-react";
+import { FolderOpen, Plus, TerminalSquare, X } from "lucide-react";
 import { motion } from "motion/react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MODE, EFFORTS, MODELS, MODES } from "../../../shared/claude.ts";
-import { fillSlots, promptSlots } from "../../../shared/prompts.ts";
+import { fillSlots, pickPrompt as pickInto, promptSlots } from "../../../shared/prompts.ts";
 import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
@@ -43,13 +43,15 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   };
   // A slot in the message, as in "review <PR URL>", gets a line of its own to fill in; the message keeps the slot, and
   // what you type there goes in its place when the session starts.
-  const slots = useMemo(() => promptSlots(prompt), [prompt]);
+  // A line closed with its × stays closed, its slot left for Claude to ask about, until another prompt is picked.
+  const [closedSlots, setClosedSlots] = useState<string[]>([]);
+  const slots = useMemo(() => promptSlots(prompt).filter((n) => !closedSlots.includes(n)), [prompt, closedSlots]);
   const [slotValues, setSlotValues] = useState<Record<string, string>>({});
   const slotInput = (name: string) => document.querySelector<HTMLInputElement>(`.prompt-slot input[data-slot="${CSS.escape(name)}"]`);
   // The first slot still empty takes the keyboard; with none, the message does, its caret at the end, so Enter starts it.
   const focusNext = (text: string) =>
     requestAnimationFrame(() => {
-      const empty = promptSlots(text).find((n) => !slotValues[n]?.trim());
+      const empty = promptSlots(text).find((n) => !slotValues[n]?.trim() && !closedSlots.includes(n));
       if (empty) return void slotInput(empty)?.focus();
       const el = area.current;
       if (!el) return;
@@ -60,15 +62,19 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   useEffect(() => {
     if (draft) focusNext(draft.text);
   }, []);
-  // A saved prompt fills an empty message, or goes after what is there, and sets the model, effort and mode it asks for.
+  // The saved prompt in the message, and what you had typed ahead of it: another chip takes its place.
+  const [picked, setPicked] = useState<{ prompt: SavedPrompt; base: string } | null>(draft ? { prompt: draft, base: "" } : null);
+  // A chip puts its prompt in the message, in place of the one picked before, with its model, effort and mode on top of
+  // yours; clicked again, it takes them out. The lines of the slots it brought go with it.
   const pickPrompt = (p: SavedPrompt) => {
-    const next = prompt.trim() ? `${prompt.trimEnd()}\n\n${p.text}` : p.text;
-    setPrompt(next);
-    if (p.model || p.effort || p.mode) {
-      setTune((t) => withPrompt(t, p));
-      setSetBy(p.title);
-    }
-    focusNext(next);
+    const next = pickInto(prompt, picked, p);
+    setPrompt(next.message);
+    setPicked(next.picked);
+    setClosedSlots([]);
+    const on = next.picked?.prompt ?? null;
+    setTune(withPrompt(mine, on));
+    setSetBy(on && (on.model || on.effort || on.mode) ? on.title : null);
+    focusNext(next.message);
   };
   // Enter in a slot goes to the next one; in the last, it starts the session, as Enter does in the message.
   const slotKeys = (e: React.KeyboardEvent, i: number) => {
@@ -84,6 +90,9 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     return snap.otherAccounts.some((a) => a.dir === first) ? first : "";
   });
   const chosen = snap.otherAccounts.find((a) => a.dir === account) ?? null;
+  // Claude Code, or another coding agent such as Codex. Claude Code each time: one try of another must not stick.
+  const [tool, setTool] = useState("claude");
+  const agent = tool === "claude" ? null : (snap.setup.agents.find((a) => a.id === tool) ?? null);
   const [starting, setStarting] = useState(false);
   const [waiting, setWaiting] = useState<string | null>(null); // a console that must be answered before the session shows
   const open = useRef(true);
@@ -126,7 +135,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const start = async () => {
     if (!canStart) return;
     setStarting(true);
-    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
+    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", agent ? { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), tool } : { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
       (err: Error) => ({ ok: false, message: err.message }) as ActionResult & { pid?: number; name?: string },
     );
     // Closed while it started: the session runs, and shows in the list, but nothing jumps at you.
@@ -169,7 +178,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
         ) : (
           <>
             <h2 id="new-title">New session</h2>
-            <p className="dialog-sub">Claude Code starts in Control Room. You type to it in its console here, no terminal needed.</p>
+            <p className="dialog-sub">{agent?.label ?? "Claude Code"} starts in Control Room. You type to it in its console here, no terminal needed.</p>
 
             <label className="field">
               <span className="field-label">Folder</span>
@@ -198,7 +207,27 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               </div>
             </label>
 
-            {snap.otherAccounts.length > 0 && (
+            {snap.setup.agents.length > 0 && (
+              <label className="field">
+                <span className="field-label">Agent</span>
+                <select className="select" value={tool} onChange={(e) => setTool(e.target.value)}>
+                  <option value="claude">Claude Code</option>
+                  {snap.setup.agents.map((a) => (
+                    <option key={a.id} value={a.id} disabled={!a.installed}>
+                      {a.installed ? a.label : `${a.label} (not installed)`}
+                    </option>
+                  ))}
+                </select>
+                {agent && (
+                  <span className="field-hint">
+                    {agent.label} runs in a console here, as in a terminal: you answer what it asks there. Its tile shows Working while its screen moves.
+                    {!agent.takesPrompt && " It starts empty: type the first message in its console."}
+                  </span>
+                )}
+              </label>
+            )}
+
+            {!agent && snap.otherAccounts.length > 0 && (
               <label className="field">
                 <span className="field-label">Account</span>
                 <select className="select" value={account} onChange={(e) => setAccount(e.target.value)}>
@@ -222,7 +251,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                 </label>
                 <SavePromptButton text={prompt} prompts={prompts} tune={tune} />
               </div>
-              <PromptChips prompts={prompts} onPick={pickPrompt} />
+              <PromptChips prompts={prompts} onPick={pickPrompt} picked={picked?.prompt.id ?? null} />
               {slots.length > 0 && (
                 <div className="prompt-slots">
                   {slots.map((name, i) => (
@@ -237,6 +266,18 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
                         onChange={(e) => setSlotValues((v) => ({ ...v, [name]: e.target.value }))}
                         onKeyDown={(e) => slotKeys(e, i)}
                       />
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Close the ${name} line`}
+                        data-tip={`Close this line. The message keeps <${name}>, for Claude to ask about.`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setClosedSlots((c) => [...c, name]);
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
                     </label>
                   ))}
                 </div>
@@ -254,44 +295,48 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               />
             </div>
 
-            <div className="field-trio">
-              <label className="field">
-                <span className="field-label">Model</span>
-                <select className="select" value={tune.model} onChange={(e) => setTuned({ model: e.target.value })}>
-                  <option value="">Your default</option>
-                  {MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="field-label">Effort</span>
-                <select className="select" value={tune.effort} onChange={(e) => setTuned({ effort: e.target.value })}>
-                  <option value="">Your default</option>
-                  {EFFORTS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="field-label">Mode</span>
-                <select className="select" value={tune.mode} onChange={(e) => setTuned({ mode: e.target.value })}>
-                  {MODES.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <p className="field-hint">
-              {setBy && <>Set by “{setBy}”. </>}
-              {MODES.find((m) => m.id === tune.mode)?.hint}. Change any of these later from the session's card.
-            </p>
+            {!agent && (
+              <>
+                <div className="field-trio">
+                  <label className="field">
+                    <span className="field-label">Model</span>
+                    <select className="select" value={tune.model} onChange={(e) => setTuned({ model: e.target.value })}>
+                      <option value="">Your default</option>
+                      {MODELS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Effort</span>
+                    <select className="select" value={tune.effort} onChange={(e) => setTuned({ effort: e.target.value })}>
+                      <option value="">Your default</option>
+                      {EFFORTS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Mode</span>
+                    <select className="select" value={tune.mode} onChange={(e) => setTuned({ mode: e.target.value })}>
+                      {MODES.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <p className="field-hint">
+                  {setBy && <>Set by “{setBy}”. </>}
+                  {MODES.find((m) => m.id === tune.mode)?.hint}. Change any of these later from the session's card.
+                </p>
+              </>
+            )}
 
             {!snap.setup.tmuxReady && (
               <p className="field-warn">

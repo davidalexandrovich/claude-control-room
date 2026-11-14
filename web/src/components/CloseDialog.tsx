@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { ClosePlan, Session, WorktreeVerdict } from "../../../shared/types.ts";
 import { folderName, plural } from "../lib/format.ts";
-import { act, api, setState, useStore } from "../store.ts";
+import { act, api, closeName, setState, useStore } from "../store.ts";
 import { Spinner } from "./Primitives.tsx";
 
 const ADVICE: Record<WorktreeVerdict, { label: string; tone: "good" | "maybe" | "keep" | "na" }> = {
@@ -61,16 +61,18 @@ function CloseTerminal({ s }: { s: Session }) {
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === "Escape" && dismiss()}
       >
-        <h2 id="close-title">Close this terminal?</h2>
+        <h2 id="close-title">{s.agent ? `Close ${s.agent.label}?` : "Close this terminal?"}</h2>
         <p className="dialog-sub">{s.summary.headline}</p>
-        <p className="dialog-text">{command ? `${command} still runs in it, and stops when it closes.` : "Its shell ends. Nothing else changes."}</p>
+        <p className="dialog-text">
+          {s.agent ? `${s.agent.label} stops. What it changed in the folder stays.` : command ? `${command} still runs in it, and stops when it closes.` : "Its shell ends. Nothing else changes."}
+        </p>
         <div className="dialog-buttons">
           <button type="button" className="btn btn-ghost" onClick={dismiss}>
             Cancel
           </button>
           <button type="button" className={`btn ${command ? "btn-danger" : "btn-primary"}`} disabled={busy} autoFocus onClick={() => void submit()}>
             {busy ? <Spinner /> : null}
-            Close terminal
+            Close {closeName(s)}
           </button>
         </div>
       </motion.div>

@@ -1,5 +1,5 @@
 import type { Session, Snapshot } from "../../../shared/types.ts";
-import { getState, setState } from "../store.ts";
+import { getState, isShell, setState } from "../store.ts";
 import { native } from "./native.ts";
 
 let audio: AudioContext | null = null;
@@ -74,7 +74,7 @@ export function alertOnChange(prev: Snapshot | null, next: Snapshot): void {
   const before = new Map((prev?.sessions ?? []).map((s) => [s.sessionId, s]));
   let chime: Chime | null = null;
   for (const s of next.sessions) {
-    if (s.terminal) continue; // a command that ends in a terminal is no news
+    if (isShell(s)) continue; // a command that ends in a terminal is no news; an agent that finishes is
     const old = before.get(s.sessionId);
     if (s.activity.kind === "working" && !workingSince.has(s.sessionId)) workingSince.set(s.sessionId, s.activity.since);
     if (!prev || !old || old.activity.kind === s.activity.kind) continue;
@@ -98,6 +98,8 @@ function describe(old: Session, s: Session): { title: string; body: string; chim
   if (old.activity.kind === "working" && (k === "idle" || k === "background")) {
     const started = workingSince.get(s.sessionId) ?? old.activity.since;
     if (Date.now() - started < 15_000) return null;
+    // Its screen stood still: done, or asking to run something. Only its console can tell.
+    if (s.agent) return { title: `${s.name} stopped`, body: "Check its console: it may be done, or asking you something.", chime: "attention" };
     const asked = s.activity.askedYou;
     const last = [...s.chat].reverse().find((c) => c.role === "assistant")?.text ?? "";
     return {

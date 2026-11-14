@@ -8,6 +8,7 @@ import { isIdeId } from "../shared/ides.ts";
 import type { ActionResult, CloseRequest, Settings } from "../shared/types.ts";
 import { MAX_ACCOUNTS } from "../shared/claude.ts";
 import { withPrompt } from "../shared/prompts.ts";
+import { withAgent } from "../shared/agents.ts";
 import { currentAccount, readAccount, readAccounts, refreshLinkScripts, startAccountSwitch } from "./account.ts";
 import { accountByDir } from "./homes.ts";
 import {
@@ -39,6 +40,7 @@ import { allPrs, checkGh } from "./github.ts";
 import { isTyping, resizeConsole, stopConsole, typeInConsole, watchConsole } from "./console.ts";
 import { body, DEV_ORIGINS, DIST, refusal, send, serveStatic } from "./http.ts";
 import { hostedName } from "./hosted.ts";
+import { NAME_PATTERN } from "../shared/hosted.ts";
 import { Monitor } from "./monitor.ts";
 import { noteUsed } from "./order.ts";
 import { APP_DIR, BRIDGE_FILE, TAP_DIR } from "./paths.ts";
@@ -175,7 +177,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
       if (m[2] === "chat") return send(res, 200, { chat: monitor.transcriptOf(pid)?.chat ?? [] });
       return send(res, 200, await closePlan(monitor, pid));
     }
-    m = /^\/api\/console\/(crt?-[0-9a-f]{8})\/stream$/.exec(p);
+    m = new RegExp(`^/api/console/(${NAME_PATTERN})/stream$`).exec(p);
     if (req.method === "GET" && m) {
       res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive" });
       const event = (name: string, data: string) => res.write(`event: ${name}\ndata: ${data}\n\n`);
@@ -211,7 +213,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/console\/(crt?-[0-9a-f]{8})\/(input|resize|stop)$/.exec(p);
+    m = new RegExp(`^/api/console/(${NAME_PATTERN})/(input|resize|stop)$`).exec(p);
     if (m && m[2] === "stop") {
       const ok = await stopConsole(m[1]);
       await monitor.fresh();
@@ -260,6 +262,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
             removeAccount?: string;
             savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown };
             removePrompt?: unknown;
+            addAgent?: { label?: unknown; command?: unknown };
+            removeAgent?: unknown;
           }
         >(req);
         const patch: Partial<Settings> = {};
@@ -341,6 +345,16 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
         if (typeof b.removePrompt === "string") {
           patch.prompts = settings().prompts.filter((p) => p.id !== b.removePrompt);
           message = "Prompt deleted";
+        }
+        if (b.addAgent) {
+          const r = withAgent(settings().agents, b.addAgent, () => randomUUID().replaceAll("-", "").slice(0, 8));
+          if ("error" in r) return send(res, 200, { ok: false, message: r.error });
+          patch.agents = r.agents;
+          message = `Added ${r.agents[r.agents.length - 1].label}`;
+        }
+        if (typeof b.removeAgent === "string") {
+          patch.agents = settings().agents.filter((a) => a.id !== b.removeAgent);
+          message = "Agent removed";
         }
         await saveSettings(patch);
         await monitor.tick();

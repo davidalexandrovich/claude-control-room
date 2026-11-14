@@ -425,6 +425,7 @@ function sessionOf(s: Seed, now: number): Session {
     hosted: false,
     remoteUrl: s.remote ? `https://claude.ai/code/session_demo${s.pid}` : null,
     terminal: null,
+    agent: null,
     account: s.personal ? PERSONAL : null,
   };
 }
@@ -472,7 +473,14 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       message: null,
       restarts: true,
     },
-    setup: { statusLine: "installed", hooks: true, links: true, vscodeHelper: "connected", vscodeWindows: 3, ides: ["vscode", "cursor", "pycharm"], tmuxReady: true, ghReady: true, shortcutReady: true },
+    setup: { statusLine: "installed", hooks: true, links: true, vscodeHelper: "connected", vscodeWindows: 3, ides: ["vscode", "cursor", "pycharm"], tmuxReady: true, ghReady: true, shortcutReady: true,
+      agents: [
+        { id: "codex", label: "Codex", installed: true, takesPrompt: true },
+        { id: "gemini", label: "Gemini", installed: true, takesPrompt: true },
+        { id: "cursor", label: "Cursor Agent", installed: true, takesPrompt: true },
+        { id: "kimi", label: "Kimi Code", installed: false, takesPrompt: false },
+      ],
+    },
     settings: {
       notifications: true,
       sounds: true,
@@ -486,6 +494,7 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       accounts: [PERSONAL],
       defaultAccountLabel: "Work",
       newSessionAccount: "",
+      agents: [],
       prompts: [
         { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity.", model: "opus", effort: "high", mode: "auto" },
         { id: "review-pr", title: "Review a PR", text: "Review <PR URL> against its ticket <ticket URL>. Inline comments, most severe first. Don't post anything.", model: "opus", effort: "high", mode: "auto" },

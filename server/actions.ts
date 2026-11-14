@@ -9,7 +9,8 @@ import { folderSetting, settings } from "./config.ts";
 import { git, listWorktrees } from "./git.ts";
 import { prForBranch, type PrRow } from "./github.ts";
 import { stopConsole } from "./console.ts";
-import { hostedName, hostedSessions, startSession, startShell, tmux, tmuxReady } from "./hosted.ts";
+import { hostedName, hostedSessions, startAgent, startSession, startShell, tmux, tmuxReady } from "./hosted.ts";
+import { agentTool } from "./agents.ts";
 import { chosenIde, openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { findTranscript, noteMode, readSessionFiles, type SessionFile } from "./monitor.ts";
@@ -354,11 +355,13 @@ interface NewSessionBody {
   effort?: unknown;
   mode?: unknown;
   account?: unknown; // the config folder of an account in Settings; left out, the usual one
+  tool?: unknown; // another coding agent, such as "codex"; left out, Claude Code
 }
 
 /** Starts Claude Code in Control Room, in a folder of your choice, with an optional first message. */
 export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<ActionResult & { pid?: number; name?: string }> {
   const prompt = typeof b.prompt === "string" && b.prompt.trim() ? b.prompt.trim() : null;
+  if (b.tool !== undefined && b.tool !== "claude") return newAgentSession(monitor, b.tool, typeof b.cwd === "string" ? b.cwd : "", prompt);
   // Left out, each one is Claude Code's own default.
   const model = isModel(b.model) ? b.model : null;
   const effort = isEffort(b.effort) ? b.effort : null;
@@ -379,6 +382,19 @@ export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<A
 }
 
 const STOPPED_AT_START = "Claude Code stopped right after it started. Run claude in that folder in a terminal once to see why.";
+
+/** Starts another coding agent, such as Codex, in a console here. It shows as a tile once it runs, which is at once. */
+async function newAgentSession(monitor: Monitor, id: unknown, cwd: string, prompt: string | null): Promise<ActionResult & { pid?: number; name?: string }> {
+  const tool = agentTool(id);
+  if (!tool) return { ok: false, message: "That coding agent is not in Control Room any more." };
+  const r = await startAgent(cwd, tool, prompt);
+  if (!r.ok || !r.name) return r;
+  await monitor.fresh();
+  const s = monitor.snapshot?.sessions.find((x) => x.sessionId === r.name);
+  return s
+    ? { ok: true, message: `Started ${tool.label}`, pid: s.pid, name: r.name }
+    : { ok: false, message: `${tool.label} stopped right after it started. Run ${tool.bin} in that folder in a terminal once to see why.` };
+}
 const moving = new Set<number>();
 
 /**

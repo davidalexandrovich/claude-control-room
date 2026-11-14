@@ -34,7 +34,7 @@ import {
   showInFinder,
   toPhone,
 } from "../lib/sessionActions.ts";
-import { act, openInIde, openSession, setState, useIdeName, useOpenName, useStore } from "../store.ts";
+import { act, closeName, openInIde, openSession, setState, useIdeName, useOpenName, useStore } from "../store.ts";
 import { NameEditor, openUrl } from "./Monitor.tsx";
 import { StatusOrb } from "./Primitives.tsx";
 import { blocked, type What } from "./Tuning.tsx";
@@ -314,7 +314,7 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
       </div>
 
       <div className="ctx-group">
-        <Item icon={<X size={14} />} label={s.terminal ? "Close terminal…" : "Close session…"} keys="close" danger onClick={run(() => setState({ closing: s.pid }))} />
+        <Item icon={<X size={14} />} label={`Close ${closeName(s)}…`} keys="close" danger onClick={run(() => setState({ closing: s.pid }))} />
       </div>
     </div>,
     document.body,

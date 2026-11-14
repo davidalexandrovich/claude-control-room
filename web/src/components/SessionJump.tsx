@@ -3,7 +3,7 @@ import { SquareTerminal } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Session } from "../../../shared/types.ts";
-import { setState, useStore } from "../store.ts";
+import { isShell, setState, useStore } from "../store.ts";
 import { StatusOrb } from "./Primitives.tsx";
 
 function words(s: Session): string {
@@ -73,7 +73,7 @@ export function SessionJump() {
               onMouseMove={() => i !== pick && setAt(i)}
               onClick={() => go(s)}
             >
-              {s.terminal ? <SquareTerminal size={13} className="term-mark" aria-label="Terminal" /> : <StatusOrb kind={s.activity.kind} size={9} />}
+              {isShell(s) ? <SquareTerminal size={13} className="term-mark" aria-label="Terminal" /> : <StatusOrb kind={s.activity.kind} size={9} />}
               <span className="jump-name">{s.name}</span>
               <span className="jump-sub">
                 {s.account && <span className="focus-row-account">{s.account.label} · </span>}

@@ -118,13 +118,23 @@ The bar above the console works like a window's title bar. **A↓** and **A↑**
 Drag the left edge of the details panel to make it wider or narrower. Double-click the edge for the usual width.
 The console has edges and corners of its own: drag the top or bottom for its height, a side for its width, a corner for both. Double-click an edge to reset it.
 
+### Other coding agents
+
+Codex, Gemini, Cursor Agent and Kimi Code can run here too, next to Claude Code. Pick one under **Agent** in **New session**. Only the ones installed on your Mac can be picked. **Settings → Coding agents** lists each one, and shows the install command for any that's missing.
+
+- **How it runs:** in a console here, the same as in a terminal tab. Your login shell starts it, so it finds the same PATH as your terminal. Sign in to each agent in its console the first time.
+- **The first message** goes over as one argument. Kimi Code starts empty, so type the first message in its console.
+- **Its tile** shows its screen, the same way a terminal's does. **Working** means its screen moves. **Stopped · check it** means its screen has stood still for a few seconds after working. It may be done, or asking you something, so you get a desktop notice to look. **Inactive** comes after the same idle time as for sessions.
+- **What only Claude Code gets:** approvals, model, effort, mode, usage and plain-English summaries all come from Claude Code's own files. For another agent, answer what it asks, and change its settings, in its console.
+- **Your own agent:** in **Settings → Coding agents**, add a name and the command, as you'd type it, for example `aider --model sonnet --message {prompt}`. `{prompt}` is where the first message goes. It's passed as one argument, never run as shell code.
+
 ### Saved prompts
 
 Keep the prompts you type again and again, and use one in a click.
 
 - **Save one:** type it as the first message in **New session** and click **Save as prompt**, or add it in **Settings → Saved prompts**.
-- **Start with one:** in **New session** your prompts are chips above the first message. A click puts that prompt in the box, after anything you've already typed. Edit it if you like, then press `Enter`.
-- **Slots to fill in:** write `<PR URL>`, `<ticket>` or any `<name>` in a prompt, for example `review <PR URL> against <ticket>`. When it's the first message in **New session**, each slot gets a line of its own, and the cursor starts in the first one. `Enter` goes to the next line, and on the last one it starts the session. What you type replaces the slot in the message. A slot you leave empty stays as it is, so Claude asks you for it. The saved prompt keeps its slots for next time.
+- **Start with one:** in **New session** your prompts are chips above the first message. A click puts that prompt in the box, after anything you've already typed. Edit it if you like, then press `Enter`. Clicking another chip swaps in that prompt instead, so you can look through them freely. The chip in use is highlighted with an **×**: click it to take its prompt out. Once you've edited the message yourself, a chip goes after your text, so nothing you wrote is lost.
+- **Slots to fill in:** write `<PR URL>`, `<ticket>` or any `<name>` in a prompt, for example `review <PR URL> against <ticket>`. When it's the first message in **New session**, each slot gets a line of its own, and the cursor starts in the first one. `Enter` goes to the next line, and on the last one it starts the session. What you type replaces the slot in the message. A slot you leave empty stays as it is, so Claude asks you for it. Click **×** on a line to close it; its slot stays in the message. The saved prompt keeps its slots for next time.
 - **Its own model, effort and mode:** give a prompt the ones it works best with in **Settings → Saved prompts**, such as Opus · xhigh · plan for a planning prompt. A click on its chip sets them in **New session**, and says **Set by** that prompt. **Any** leaves that choice as it is. A prompt's settings never become your defaults: the next **New session** opens with the ones you picked yourself. **Save as prompt** keeps the model, effort and mode chosen in the dialog.
 - **Use one in a running session:** click the speech-bubble button on the console's bar and pick one. It's pasted at Claude Code's prompt but not sent, so you can change it first. Press `Enter` to send it.
 - **From the top bar:** click **Prompts**, next to **Notifications**.

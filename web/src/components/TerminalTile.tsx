@@ -1,9 +1,10 @@
-// A terminal started in Control Room, on the wall with the sessions: its screen in place of a conversation.
-import { GitBranch, PictureInPicture2, SquareTerminal, X } from "lucide-react";
+// A terminal started in Control Room, on the wall with the sessions: its screen in place of a conversation. Another
+// coding agent, such as Codex, shows the same way, with its status read off that screen.
+import { Bot, GitBranch, PictureInPicture2, SquareTerminal, X } from "lucide-react";
 import { motion } from "motion/react";
 import type { Session } from "../../../shared/types.ts";
 import { popoutSession } from "../lib/native.ts";
-import { openMenu, setState, useStore } from "../store.ts";
+import { closeName, openMenu, setState, useStore } from "../store.ts";
 import { NameEditor, RenameButton, statusTime } from "./Monitor.tsx";
 import { IconButton, StatusOrb, useNow } from "./Primitives.tsx";
 
@@ -12,7 +13,7 @@ export function TerminalTile({ s, index, selected }: { s: Session; index: number
   const renaming = useStore((st) => st.renaming === s.pid && st.drawer !== s.pid);
   const menuOn = useStore((st) => st.menu?.pid === s.pid);
   const screen = s.terminal?.screen ?? [];
-  const running = !!s.terminal?.command;
+  const running = s.agent ? s.activity.kind === "working" : !!s.terminal?.command;
   return (
     <motion.article
       layout
@@ -20,7 +21,7 @@ export function TerminalTile({ s, index, selected }: { s: Session; index: number
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.8 }}
-      className={`monitor is-terminal ${running ? "is-running" : ""} ${selected ? "is-selected" : ""} ${menuOn ? "has-menu" : ""}`}
+      className={`monitor is-terminal ${s.agent ? "is-agent" : ""} ${running ? "is-running" : ""} ${selected ? "is-selected" : ""} ${menuOn ? "has-menu" : ""}`}
       onClick={() => setState({ drawer: s.pid, selected: s.pid, typeInto: s.pid })}
       onContextMenu={(e) => openMenu(e, s.pid)}
       data-pid={s.pid}
@@ -29,7 +30,7 @@ export function TerminalTile({ s, index, selected }: { s: Session; index: number
       <div className="mon-screen" aria-hidden />
       <header className="mon-head">
         <span className="mon-key" data-tip={index < 9 ? `Press ${index + 1} or ⌘${index + 1} to select` : undefined}>{index + 1}</span>
-        <SquareTerminal size={15} className="term-mark" aria-label="Terminal" />
+        {s.agent ? <Bot size={15} className="term-mark" aria-label={s.agent.label} /> : <SquareTerminal size={15} className="term-mark" aria-label="Terminal" />}
         {renaming ? <NameEditor s={s} className="mon-title" onDone={() => setState({ renaming: null })} /> : <h3 className="mon-title">{s.name}</h3>}
         <div className="mon-actions">
           <RenameButton s={s} onClick={() => setState({ renaming: s.pid })} />
@@ -37,7 +38,7 @@ export function TerminalTile({ s, index, selected }: { s: Session; index: number
             <PictureInPicture2 size={15} />
           </IconButton>
         </div>
-        <IconButton label="Close terminal…" keys="close" tone="danger" onClick={() => setState({ closing: s.pid })}>
+        <IconButton label={`Close ${closeName(s)}…`} keys="close" tone="danger" onClick={() => setState({ closing: s.pid })}>
           <X size={15} />
         </IconButton>
       </header>

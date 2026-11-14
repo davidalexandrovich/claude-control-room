@@ -10,7 +10,9 @@ import { claimsOf, repoClaims } from "./claims.ts";
 import { publicSettings, settings } from "./config.ts";
 import { gitInfo, workingGit } from "./git.ts";
 import { ghReady, openSince, prByNumber, prForBranch, refreshRepo } from "./github.ts";
-import { type HostedPane, hostedName, hostedPanes, isTerminalName, screenLines, tmuxReady } from "./hosted.ts";
+import { type HostedPane, hostedName, hostedPanes, isAgentName, isTerminalName, screenLines, tmuxReady } from "./hosted.ts";
+import { agentActivity, allAgents } from "../shared/agents.ts";
+import { agentChoices } from "./agents.ts";
 import { ideOf, installedIdes, noteConnectedIdes } from "./ide.ts";
 import { HOME, SUMMARIZER_CWD } from "./paths.ts";
 import { powerState } from "./power.ts";
@@ -174,6 +176,8 @@ export class Monitor {
   files = new Map<number, SessionFile>();
   private hosted: HostedPane[] = []; // tmux sessions on Control Room's own server
   private commands = new Map<string, { command: string | null; since: number }>(); // what each terminal runs, since when
+  // What each agent's screen showed, when it last moved, since when it has been moving, and whether it has worked yet.
+  private screens = new Map<string, { text: string; changedAt: number; movingSince: number; worked: boolean }>();
 
   subscribe(fn: (s: Snapshot) => void): () => void {
     this.listeners.add(fn);
@@ -228,10 +232,13 @@ export class Monitor {
     for (const pid of [...this.transcripts.keys()]) if (!this.files.has(pid)) this.transcripts.delete(pid);
 
     const terminals = this.hosted.filter((p) => isTerminalName(p.name));
+    const agents = this.hosted.filter((p) => isAgentName(p.name));
     for (const name of [...this.commands.keys()]) if (!terminals.some((p) => p.name === name)) this.commands.delete(name);
+    for (const name of [...this.screens.keys()]) if (!agents.some((p) => p.name === name)) this.screens.delete(name);
     const sessions = await Promise.all([
       ...live.map((f) => this.buildSession(f, procs).catch(() => null)),
       ...terminals.map((p) => this.buildTerminal(p).catch(() => null)),
+      ...agents.map((p) => this.buildAgent(p).catch(() => null)),
     ]);
     // The one you used last comes first, or where you dropped it. Claude's own work does not count, so the order holds
     // still while sessions run.
@@ -246,6 +253,7 @@ export class Monitor {
       connected: connections[i + 1].statusLine === "installed" && connections[i + 1].hooks,
     }));
     const windows = bridgeConnected();
+    const agentList = await agentChoices();
     const snapshot: Snapshot = {
       at: Date.now(),
       sessions: list,
@@ -263,6 +271,7 @@ export class Monitor {
         tmuxReady: tmuxReady(),
         ghReady: ghReady(),
         shortcutReady: shortcutReady(),
+        agents: agentList,
       },
       settings: publicSettings(),
       update: updateState(),
@@ -426,7 +435,38 @@ export class Monitor {
       hosted: this.hosted.some((p) => p.name === hostedName(f.tmux)),
       remoteUrl: remoteUrl(f.bridgeSessionId),
       terminal: null,
+      agent: null,
       account: f.account,
+    };
+  }
+
+  /**
+   * Another coding agent, such as Codex: a terminal that runs it, with a status read off its screen. A screen that
+   * moves is working; one that has stood still a few seconds is done for now, or waits for you.
+   */
+  private async buildAgent(p: HostedPane): Promise<Session> {
+    const s = await this.buildTerminal(p);
+    const now = Date.now();
+    const text = s.terminal?.screen.join("\n") ?? "";
+    const prev = this.screens.get(p.name);
+    const moved = !prev || prev.text !== text;
+    const changedAt = moved ? now : prev.changedAt;
+    const movingSince = moved && prev && now - prev.changedAt < 4_000 ? prev.movingSince : moved ? now : prev.movingSince;
+    // Drawing its first screen is not work: what it does after the first seconds is, or at once with a first message.
+    const worked = (prev?.worked ?? false) || (moved && (now - p.createdAt > 8_000 || (!!p.prompt && !!prev)));
+    this.screens.set(p.name, { text, changedAt, movingSince, worked });
+    const a = agentActivity(changedAt, worked, now, settings().inactiveAfterMinutes * 60_000);
+    const label = allAgents(settings().agents).find((t) => t.id === p.agent)?.label ?? (p.agent || "Agent");
+    const folder = basename(p.cwd) || p.cwd;
+    return {
+      ...s,
+      name: s.nameSource === "saved" ? s.name : `${label} · ${folder}`,
+      lastActivityAt: changedAt,
+      activity: { ...s.activity, kind: a.kind, label: a.label, since: a.kind === "working" ? movingSince : changedAt },
+      summary: { ...s.summary, headline: p.prompt ? p.prompt.slice(0, 160) : s.summary.headline },
+      firstPrompt: p.prompt || null,
+      terminal: s.terminal && { ...s.terminal, command: label },
+      agent: { id: p.agent, label },
     };
   }
 
@@ -484,6 +524,7 @@ export class Monitor {
       hosted: true,
       remoteUrl: null,
       terminal: { command, screen },
+      agent: null,
       account: null,
     };
   }

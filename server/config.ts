@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, normalize } from "node:path";
 import { MAX_ACCOUNTS } from "../shared/claude.ts";
 import { isIdeId } from "../shared/ides.ts";
+import { cleanAgents } from "../shared/agents.ts";
 import { cleanPrompts } from "../shared/prompts.ts";
 import type { AccountRef, Settings } from "../shared/types.ts";
 import { chosenIde } from "./ide.ts";
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultAccountLabel: "Default",
   newSessionAccount: "",
   prompts: [],
+  agents: [],
 };
 
 let current: Settings = { ...DEFAULT_SETTINGS };
@@ -34,6 +36,7 @@ export function cleanSettings(raw: Partial<Settings>): Settings {
   s.defaultAccountLabel = accountLabel(s.defaultAccountLabel) ?? DEFAULT_SETTINGS.defaultAccountLabel;
   if (!s.accounts.some((a) => a.dir === s.newSessionAccount)) s.newSessionAccount = "";
   s.prompts = cleanPrompts(s.prompts);
+  s.agents = cleanAgents(s.agents);
   return s;
 }
 
