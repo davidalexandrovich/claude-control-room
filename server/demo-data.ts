@@ -445,6 +445,18 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       sevenDay: { usedPercent: 61, resetsAt: now + 77 * 60 * MIN },
       observedAt: now,
     },
+    agentUsage: [
+      {
+        id: "codex",
+        label: "Codex",
+        plan: "Plus",
+        windows: [
+          { label: "5-hour", minutes: 300, usedPercent: 18, resetsAt: now + 162 * MIN },
+          { label: "Week", minutes: 10_080, usedPercent: 34, resetsAt: now + 3 * 24 * 60 * MIN },
+        ],
+        observedAt: now - 4 * MIN,
+      },
+    ],
     account: { email: "you@example.com", orgName: "Acme", plan: "max", loggedIn: true },
     otherAccounts: [
       {
@@ -479,6 +491,7 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
         { id: "gemini", label: "Gemini", installed: true, takesPrompt: true },
         { id: "cursor", label: "Cursor Agent", installed: true, takesPrompt: true },
         { id: "kimi", label: "Kimi Code", installed: false, takesPrompt: false },
+        { id: "ollama", label: "Ollama", installed: true, takesPrompt: false },
       ],
     },
     settings: {

@@ -120,12 +120,15 @@ The console has edges and corners of its own: drag the top or bottom for its hei
 
 ### Other coding agents
 
-Codex, Gemini, Cursor Agent and Kimi Code can run here too, next to Claude Code. Pick one under **Agent** in **New session**. Only the ones installed on your Mac can be picked. **Settings → Coding agents** lists each one, and shows the install command for any that's missing.
+Codex, Gemini, Cursor Agent, Kimi Code and Ollama can run here too, next to Claude Code. Pick one under **Agent** in **New session**. Only the ones installed on your Mac can be picked. **Settings → Coding agents** lists each one, and shows the install command for any that's missing.
 
 - **How it runs:** in a console here, the same as in a terminal tab. Your login shell starts it, so it finds the same PATH as your terminal. Sign in to each agent in its console the first time.
-- **The first message** goes over as one argument. Kimi Code starts empty, so type the first message in its console.
+- **The first message** goes over as one argument. Kimi Code and Ollama start empty, so type the first message in their console.
+- **Ollama** opens its own menu, where you pick a coding tool, such as Codex or OpenCode, and a local or cloud model. When Ollama isn't running, its server starts for that console and stops when you close it.
+- **When one fails to start,** its console stays open until you press Enter, so you can read why.
 - **Its tile** shows its screen, the same way a terminal's does. **Working** means its screen moves. **Stopped · check it** means its screen has stood still for a few seconds after working. It may be done, or asking you something, so you get a desktop notice to look. **Inactive** comes after the same idle time as for sessions.
-- **What only Claude Code gets:** approvals, model, effort, mode, usage and plain-English summaries all come from Claude Code's own files. For another agent, answer what it asks, and change its settings, in its console.
+- **Usage:** Codex's 5-hour and weekly limits show under Claude's in the usage card and the menu bar, read from the session files Codex writes on each reply, wherever it runs. The others keep their usage on their own side, so the card says where to look: `/stats` in a Gemini console, `/usage` in a Kimi console, your dashboard on cursor.com. Ollama's local models have no limits.
+- **What only Claude Code gets:** approvals, model, effort, mode and plain-English summaries all come from Claude Code's own files. For another agent, answer what it asks, and change its settings, in its console.
 - **Your own agent:** in **Settings → Coding agents**, add a name and the command, as you'd type it, for example `aider --model sonnet --message {prompt}`. `{prompt}` is where the first message goes. It's passed as one argument, never run as shell code.
 
 ### Saved prompts

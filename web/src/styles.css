@@ -3759,6 +3759,39 @@ body.is-resizing .drawer {
 .usage-account:first-of-type {
   margin-top: 0;
 }
+/* Other coding agents, under Claude's own: their limits, or where to see them. */
+.usage-agents {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.usage-agents .usage-account {
+  align-items: center;
+  min-height: 24px;
+  margin: 0 0 4px;
+}
+.usage-agent-link.icon-btn {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 7px;
+}
+.usage-elsewhere {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.usage-elsewhere b {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.usage-elsewhere .mb-link {
+  display: inline-flex;
+  margin: 0;
+  font-size: 11.5px;
+}
 .usage-account b {
   color: var(--text);
   font-weight: 600;

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,7 +18,7 @@ import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../serv
 import { APP_DIR, HOOK_SCRIPT, TAP_SCRIPT } from "../server/paths.ts";
 import { linkScript, profileOf, profilesByEmail } from "../server/chrome.ts";
 import { parseTicketTitle, plainTicketTitle } from "../server/summaries.ts";
-import { agentActivity, cleanAgents, customTool, promptArg, withAgent } from "../shared/agents.ts";
+import { agentActivity, agentScript, cleanAgents, codexLimits, customTool, promptArg, windowLabel, withAgent } from "../shared/agents.ts";
 import { isAgentName, isHostedName } from "../shared/hosted.ts";
 import { cleanPrompts, fillSlots, MAX_PROMPTS, pickPrompt, promptSlots, promptText, promptTitle, promptTune, withPrompt } from "../shared/prompts.ts";
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
@@ -910,5 +910,49 @@ describe("signing in", () => {
     execFileSync("/bin/sh", ["-c", BROWSER_BODY, "sh", back], { env: { CONTROL_ROOM_SIGNIN: file } });
     expect(readFileSync(file, "utf8")).toBe(`${back}\n`);
     expect(signInUrl("nothing here")).toBeNull();
+  });
+});
+
+describe("Codex limits", () => {
+  // The shape Codex 0.169 writes on a team plan: one weekly window, no second one.
+  const line = (limits: object | null, timestamp = "2026-11-14T16:53:00.000Z") =>
+    JSON.stringify({ timestamp, type: "event_msg", payload: { type: "token_count", info: { total_token_usage: { total_tokens: 16062 } }, rate_limits: limits } });
+  const team = { limit_id: "codex", primary: { used_percent: 12.5, window_minutes: 10080, resets_at: 1795272779 }, secondary: null, plan_type: "team" };
+
+  it("reads the newest reply's windows, in milliseconds, named by their length", () => {
+    const text = [line({ ...team, primary: { ...team.primary, used_percent: 3 } }), '{"type":"event_msg","payload":{"type":"agent_message"}}', line(team)].join("\n");
+    expect(codexLimits(text)).toEqual({ plan: "Team", windows: [{ label: "Week", minutes: 10080, usedPercent: 12.5, resetsAt: 1795272779000 }] });
+  });
+
+  it("puts the 5-hour window first, and reads an older Codex's reset from the event's time", () => {
+    const text = line({ primary: { used_percent: 40, window_minutes: 10080, resets_in_seconds: 60 }, secondary: { used_percent: 140, window_minutes: 300, resets_at: 1795000000 } });
+    expect(codexLimits(text)?.windows).toEqual([
+      { label: "5-hour", minutes: 300, usedPercent: 100, resetsAt: 1795000000000 },
+      { label: "Week", minutes: 10080, usedPercent: 40, resetsAt: Date.parse("2026-11-14T16:53:00.000Z") + 60_000 },
+    ]);
+  });
+
+  it("is null when no reply carried limits, and skips a line cut off by the tail", () => {
+    expect(codexLimits(['{"payload":{"type":"token_count","rate_limits":{"primary"', line(null)].join("\n"))).toBeNull();
+    expect(codexLimits("")).toBeNull();
+  });
+
+  it("names other windows by hours or days", () => {
+    expect([windowLabel(300), windowLabel(10080), windowLabel(1440), windowLabel(60)]).toEqual(["5-hour", "Week", "1-day", "1-hour"]);
+  });
+});
+
+describe("agent script", () => {
+  const run = (command: string) => spawnSync("/bin/sh", ["-c", agentScript(command), "sh", "a b"], { input: "\n", encoding: "utf8" });
+
+  it("keeps the console open after a failure, and passes the first message on as one argument", () => {
+    const failed = run('printf "%s|" "$@"; (exit 3)');
+    expect(failed.stdout).toBe("a b|\n[It exited with 3. Press Enter to close.]");
+    expect(failed.status).toBe(0);
+  });
+
+  it("closes it at once after a clean exit or Ctrl+C", () => {
+    expect(run("(exit 0)").stdout).toBe("");
+    expect(run("(exit 130)").stdout).toBe("");
   });
 });

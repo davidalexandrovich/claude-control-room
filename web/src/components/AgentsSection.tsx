@@ -9,6 +9,7 @@ const INSTALL: Record<string, string> = {
   gemini: "npm i -g @google/gemini-cli",
   cursor: "curl https://cursor.com/install -fsS | bash",
   kimi: "curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash",
+  ollama: "brew install ollama",
 };
 
 export function AgentsSection({ snap }: { snap: Snapshot }) {
