@@ -816,6 +816,13 @@ describe("other Claude accounts", () => {
     expect(cleanSettings({}).defaultAccountLabel).toBe("Default");
     expect(cleanSettings({ defaultAccountLabel: "  Work  " }).defaultAccountLabel).toBe("Work");
     expect(cleanSettings({ defaultAccountLabel: "   " }).defaultAccountLabel).toBe("Default");
+    // A start folder per account still in Settings: "" is the usual one. ~ is home; junk and gone accounts drop out.
+    expect(cleanSettings({}).accountFolders).toEqual({});
+    const folders = { "": "~/code/work/", "/opt/claude-side": "/srv/side", "/opt/gone": "/srv/x", "/opt/claude-side2": 3, junk: "relative" };
+    expect(cleanSettings({ accounts: [{ label: "Side", dir: "/opt/claude-side" }], accountFolders: folders as never }).accountFolders).toEqual({
+      "": join(home, "code", "work"),
+      "/opt/claude-side": "/srv/side",
+    });
     // New sessions start on the usual account, unless Settings names another one that is still there.
     expect(cleanSettings({}).newSessionAccount).toBe("");
     const personal = { label: "Personal", dir: "/opt/claude-personal" };

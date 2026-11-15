@@ -250,7 +250,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
       case "/api/folders":
         return send(res, 200, await editFolder(monitor, await body<Parameters<typeof editFolder>[1]>(req)));
       case "/api/terminal":
-        return send(res, 200, await startTerminal(monitor));
+        return send(res, 200, await startTerminal(monitor, (await body<{ account?: unknown }>(req)).account));
       case "/api/open": {
         const b = await body<{ url?: string; folder?: string; pid?: unknown; account?: unknown }>(req);
         if (b.url) return send(res, 200, await openUrl(b.url, linkEmail(b)));
@@ -266,6 +266,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
             addAccount?: { label?: unknown; dir?: unknown };
             renameAccount?: { label?: unknown; dir?: unknown };
             removeAccount?: string;
+            accountFolder?: { account?: unknown; folder?: unknown };
             savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown };
             removePrompt?: unknown;
             addAgent?: { label?: unknown; command?: unknown };
@@ -328,6 +329,19 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           }
           patch.newSessionAccount = b.newSessionAccount;
         }
+        // Where New session and a terminal start for an account; left empty, it has none.
+        if (b.accountFolder) {
+          const { account, folder } = b.accountFolder;
+          if (typeof account !== "string" || (account && !settings().accounts.some((a) => a.dir === account))) {
+            return send(res, 200, { ok: false, message: "That account is not in Settings any more." });
+          }
+          const { [account]: _, ...rest } = settings().accountFolders;
+          if (typeof folder === "string" && folder.trim()) {
+            const path = folderSetting(folder);
+            if (!path) return send(res, 200, { ok: false, message: `No folder at ${folder.trim()}` });
+            patch.accountFolders = { ...rest, [account]: path };
+          } else patch.accountFolders = rest;
+        }
         if (typeof b.removeAccount === "string") {
           const gone = settings().accounts.find((a) => a.dir === b.removeAccount);
           // Its sessions would vanish from here, and those started here would run on with no way to reach them.
@@ -341,6 +355,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           patch.accounts = settings().accounts.filter((a) => a.dir !== b.removeAccount);
           // New sessions go back to the usual account.
           if (settings().newSessionAccount === b.removeAccount) patch.newSessionAccount = "";
+          const { [b.removeAccount]: _, ...folders } = patch.accountFolders ?? settings().accountFolders;
+          patch.accountFolders = folders;
         }
         if (b.savePrompt) {
           const r = withPrompt(settings().prompts, b.savePrompt, () => randomUUID().slice(0, 8));

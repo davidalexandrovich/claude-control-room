@@ -3832,6 +3832,18 @@ body.is-resizing .drawer {
   color: var(--text-3);
   font-size: 11.5px;
 }
+.account-item .set-folder {
+  width: 190px;
+  flex: none;
+}
+@media (max-width: 560px) {
+  .account-item {
+    flex-wrap: wrap;
+  }
+  .account-item .set-folder {
+    width: 100%;
+  }
+}
 .account-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;

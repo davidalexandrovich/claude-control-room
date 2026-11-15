@@ -4,6 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import { claudeCommand, MAX_ACCOUNTS } from "../../../shared/claude.ts";
 import type { OtherAccount, Snapshot } from "../../../shared/types.ts";
 import { act, useStore } from "../store.ts";
+import { FolderField } from "./FolderField.tsx";
 
 /** An account's name, shown on the filters, its sessions and its usage: click it to change it. */
 function AccountName({ label, onSave }: { label: string; onSave: (label: string) => void }) {
@@ -72,6 +73,15 @@ export function AccountsSection({ snap }: { snap: Snapshot }) {
   const renameUsual = (label: string) => void act("account-name", "/api/settings", { defaultAccountLabel: label }, true);
   const rename = (a: OtherAccount, label: string) => label && void act(`account:${a.dir}`, "/api/settings", { renameAccount: { dir: a.dir, label } }, true);
   const startOn = (dir: string) => void act("account-new", "/api/settings", { newSessionAccount: dir }, true);
+  // Where New session and a terminal start on this account: "" is the usual one. Left empty, the last folder you used.
+  const folder = (account: string, label: string) => (
+    <FolderField
+      value={snap.settings.accountFolders[account] ?? ""}
+      label={`${label}: start folder`}
+      placeholder="Start folder, ~/code"
+      save={(text) => ({ accountFolder: { account, folder: text } })}
+    />
+  );
 
   return (
     <>
@@ -81,7 +91,8 @@ export function AccountsSection({ snap }: { snap: Snapshot }) {
           <b>Other accounts</b>
           <span>
             A personal account next to your work one, say. Each keeps its own login, settings and conversations in its own folder. Sessions from every account show
-            here, marked with the account's name, and New session asks which one to use.
+            here, marked with the account's name, and New session asks which one to use. Give one a start folder, and New session and Terminal open
+            there while you are on its tab.
           </span>
         </div>
         <div className="account-list">
@@ -91,6 +102,7 @@ export function AccountsSection({ snap }: { snap: Snapshot }) {
               <AccountName label={snap.settings.defaultAccountLabel} onSave={renameUsual} />
               <span>{snap.account.email ?? "Not signed in"} · ~/.claude</span>
             </div>
+            {folder("", snap.settings.defaultAccountLabel)}
           </div>
           {others.map((a) => (
             <div key={a.dir} className="account-item">
@@ -101,6 +113,7 @@ export function AccountsSection({ snap }: { snap: Snapshot }) {
                   {a.loggedIn ? (a.email ?? "Signed in") : "Not signed in"} · {a.dir}
                 </span>
               </div>
+              {folder(a.dir, a.label)}
               <button
                 type="button"
                 className={`btn btn-sm ${a.loggedIn ? "btn-ghost" : "btn-primary"}`}

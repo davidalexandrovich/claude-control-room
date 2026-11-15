@@ -235,6 +235,7 @@ export interface Settings {
   accounts: AccountRef[]; // Claude accounts besides the one in ~/.claude
   defaultAccountLabel: string; // the name of that one here: "Default" until you give it another, such as "Work"
   newSessionAccount: string; // the folder of the account New session starts on: "" for the one in ~/.claude
+  accountFolders: Record<string, string>; // where New session and a terminal start for an account: "" for the usual one, else its folder
   prompts: SavedPrompt[]; // your own prompts, to start a session with or paste into one
   agents: CustomAgent[]; // coding agents of your own for New session, besides the built-in ones
 }

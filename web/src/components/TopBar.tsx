@@ -4,7 +4,7 @@ import type { Snapshot } from "../../../shared/types.ts";
 import { playChime } from "../lib/alerts.ts";
 import { withKey } from "../lib/keys.ts";
 import { native } from "../lib/native.ts";
-import { act, api, openTerminal, setState, useStore, VIEW } from "../store.ts";
+import { act, api, openTerminal, setState, startFolder, useStore, VIEW } from "../store.ts";
 import { IconButton } from "./Primitives.tsx";
 import { allHidden } from "../lib/cards.ts";
 import { toggleAllCards } from "../lib/overview.ts";
@@ -49,6 +49,7 @@ export function TopBar({ snap }: { snap: Snapshot | null }) {
   const hidden = useStore((s) => s.ovHidden);
   const folded = allHidden(hidden);
   const cfg = snap?.settings;
+  const terminalIn = useStore((st) => startFolder(st)) ?? cfg?.terminalFolder;
   return (
     <header className={`topbar ${native ? "is-native" : ""}`}>
       <div className="brand">
@@ -90,7 +91,7 @@ export function TopBar({ snap }: { snap: Snapshot | null }) {
         </IconButton>
         {snap && !VIEW.wallOnly && VIEW.sessionPid === null && <UpdatePill snap={snap} />}
         {cfg && !VIEW.wallOnly && VIEW.sessionPid === null && (
-          <button type="button" className="btn btn-ghost btn-sm btn-terminal" data-tip={withKey(`New terminal here, in ${cfg.terminalFolder}`, "newTerminal")} data-tip-side="bottom" onClick={() => void openTerminal()}>
+          <button type="button" className="btn btn-ghost btn-sm btn-terminal" data-tip={withKey(`New terminal here, in ${terminalIn}`, "newTerminal")} data-tip-side="bottom" onClick={() => void openTerminal()}>
             <SquareTerminal size={14} /> Terminal
           </button>
         )}

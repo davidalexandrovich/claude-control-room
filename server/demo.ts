@@ -198,10 +198,13 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         publish();
         return send(res, 200, { ok: true, message: "Done" });
       }
-      case "/api/terminal":
-        return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${snap.settings.terminalFolder}.` });
+      case "/api/terminal": {
+        const { account } = await body<{ account?: unknown }>(req);
+        const folder = (typeof account === "string" && snap.settings.accountFolders[account]) || snap.settings.terminalFolder;
+        return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${folder}.` });
+      }
       case "/api/settings": {
-        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown; addAgent?: { label?: unknown; command?: unknown }; removeAgent?: unknown }>(req);
+        const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown; addAgent?: { label?: unknown; command?: unknown }; removeAgent?: unknown; accountFolder?: { account?: unknown; folder?: unknown } }>(req);
         const patch: Partial<Settings> = {};
         for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
@@ -210,6 +213,11 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         if (b.layout === "fit" || b.layout === "comfortable" || b.layout === "focus") patch.layout = b.layout;
         if (isIdeId(b.ide)) patch.ide = b.ide;
         if (typeof b.terminalFolder === "string" && b.terminalFolder.trim()) patch.terminalFolder = b.terminalFolder.trim();
+        if (b.accountFolder && typeof b.accountFolder.account === "string") {
+          const { [b.accountFolder.account]: _, ...rest } = snap.settings.accountFolders;
+          const folder = typeof b.accountFolder.folder === "string" ? b.accountFolder.folder.trim() : "";
+          patch.accountFolders = folder ? { ...rest, [b.accountFolder.account]: folder } : rest;
+        }
         let message = "Saved";
         if (b.savePrompt) {
           const r = withPrompt(snap.settings.prompts, b.savePrompt, () => randomUUID().slice(0, 8));

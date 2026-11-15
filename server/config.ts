@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accounts: [],
   defaultAccountLabel: "Default",
   newSessionAccount: "",
+  accountFolders: {},
   prompts: [],
   agents: [],
 };
@@ -35,6 +36,7 @@ export function cleanSettings(raw: Partial<Settings>): Settings {
   s.accounts = cleanAccounts(s.accounts);
   s.defaultAccountLabel = accountLabel(s.defaultAccountLabel) ?? DEFAULT_SETTINGS.defaultAccountLabel;
   if (!s.accounts.some((a) => a.dir === s.newSessionAccount)) s.newSessionAccount = "";
+  s.accountFolders = cleanAccountFolders(s.accountFolders, s.accounts);
   s.prompts = cleanPrompts(s.prompts);
   s.agents = cleanAgents(s.agents);
   return s;
@@ -87,6 +89,23 @@ export function cleanAccounts(raw: unknown): AccountRef[] {
     if (dir && label && out.length < MAX_ACCOUNTS && !out.some((o) => overlaps(o.dir, dir))) out.push({ label, dir });
   }
   return out;
+}
+
+/** The start folder of each account still in Settings, each a full path: "" is the usual account, else its folder. */
+export function cleanAccountFolders(raw: unknown, accounts: AccountRef[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [account, folder] of Object.entries(raw)) {
+    const path = typedPath(folder);
+    if (path && (account === "" || accounts.some((a) => a.dir === account))) out[account] = path;
+  }
+  return out;
+}
+
+/** Where New session and a terminal start for the account: its own folder, if it is still there. */
+export function accountFolder(account: string): string | null {
+  const folder = current.accountFolders[account];
+  return folder ? folderSetting(folder) : null;
 }
 
 export async function loadSettings(): Promise<Settings> {
