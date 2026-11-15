@@ -137,11 +137,14 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const start = async () => {
     if (!canStart) return;
     setStarting(true);
-    const r = await api<ActionResult & { pid?: number; name?: string }>("/api/sessions/new", agent ? { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), tool } : { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
-      (err: Error) => ({ ok: false, message: err.message }) as ActionResult & { pid?: number; name?: string },
+    type Started = ActionResult & { pid?: number; name?: string; note?: string };
+    const r = await api<Started>("/api/sessions/new", agent ? { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), tool } : { cwd: cwd.trim(), prompt: fillSlots(prompt, slotValues), ...tune, account: account || undefined }).catch(
+      (err: Error) => ({ ok: false, message: err.message }) as Started,
     );
+    // On another account than the one picked: your shell sent it there. Said either way, closed or not.
+    if (r.note) toast(r.note, "error");
     // Closed while it started: the session runs, and shows in the list, but nothing jumps at you.
-    if (!open.current) return void (r.ok && toast(r.pid ? "Started" : r.message, "ok"));
+    if (!open.current) return void (r.ok && !r.note && toast(r.pid ? "Started" : r.message, "ok"));
     setStarting(false);
     if (!r.ok) return toast(r.message, "error");
     remember("cr.newSessionTune", mine);

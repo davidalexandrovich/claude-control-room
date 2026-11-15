@@ -193,7 +193,7 @@ Keep a personal account next to your work one. Claude Code keeps each login in i
 Add one in **Settings → Claude accounts**: a name, such as Personal, and a folder, such as `~/.claude-personal`. Click **Sign in** and pick the account.
 The sign-in opens in a private window (Chrome, Brave, Edge or Firefox, the first one you have), so your browser's own claude.ai stays signed in to your work account.
 
-**New session** then asks which account to use. It starts on the account whose tab you are on. On **All accounts** it starts on the default one, or on the one set in **Settings → Claude accounts → New sessions start on**. A session on another account has its name in pink on the tile, in Focus and in its details.
+**New session** then asks which account to use. It starts on the account whose tab you are on. On **All accounts** it starts on the default one, or on the one set in **Settings → Claude accounts → New sessions start on**. Your shell has the last word: when a `claude` function in `~/.zshrc` runs a folder on another account, the session starts there, and Control Room tells you. A session on another account has its name in pink on the tile, in Focus and in its details.
 To see one account's sessions, pick it next to the filters above the wall, or click its count in the Sessions card. **Default** is every session that is not on another account.
 Sessions you start yourself show up too: `CLAUDE_CONFIG_DIR=~/.claude-personal claude`.
 The usage card shows each account's limits, once **Connect Claude Code** has added the status line to that account as well.
