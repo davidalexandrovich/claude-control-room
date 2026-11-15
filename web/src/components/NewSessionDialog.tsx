@@ -6,7 +6,7 @@ import { fillSlots, pickPrompt as pickInto, promptSlots } from "../../../shared/
 import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
-import { api, consoleName, getState, remember, setState, stored, toast } from "../store.ts";
+import { accountFilterOf, api, consoleName, getState, remember, setState, stored, toast } from "../store.ts";
 import { PromptChips, SavePromptButton, usePrompts } from "./Prompts.tsx";
 
 const Console = lazy(() => import("./Console.tsx"));
@@ -83,10 +83,12 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     if (i < slots.length - 1) slotInput(slots[i + 1])?.focus();
     else void start();
   };
-  // The config folder of another account, or "" for the usual one. Each time the one from Settings, not the last choice:
-  // one session on a personal account must not put the next ones there too.
+  // The config folder of another account, or "" for the usual one. The account tab you are on, so New session from
+  // Personal starts on Personal; on All accounts, the one from Settings. Never the last choice: one session on a
+  // personal account must not put the next ones there too.
   const [account, setAccount] = useState(() => {
-    const first = snap.settings.newSessionAccount;
+    const tab = accountFilterOf(getState());
+    const first = tab === "default" ? "" : tab || snap.settings.newSessionAccount;
     return snap.otherAccounts.some((a) => a.dir === first) ? first : "";
   });
   const chosen = snap.otherAccounts.find((a) => a.dir === account) ?? null;

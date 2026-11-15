@@ -142,7 +142,7 @@ export function AccountsSection({ snap }: { snap: Snapshot }) {
         <div className="set-line">
           <div className="set-text">
             <b>New sessions start on</b>
-            <span>The account New session picks each time. You can still pick another one there, for that session.</span>
+            <span>The account New session picks on All accounts. On one account's tab it picks that account. You can still pick another one there, for that session.</span>
           </div>
           <div className="set-control">
             <select className="select" aria-label="New sessions start on" value={snap.settings.newSessionAccount} onChange={(e) => startOn(e.target.value)}>
