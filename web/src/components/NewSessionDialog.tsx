@@ -6,7 +6,7 @@ import { fillSlots, pickPrompt as pickInto, promptSlots } from "../../../shared/
 import type { ActionResult, SavedPrompt, Snapshot } from "../../../shared/types.ts";
 import { folderName } from "../lib/format.ts";
 import { native } from "../lib/native.ts";
-import { accountFilterOf, api, consoleName, getState, remember, setState, stored, toast } from "../store.ts";
+import { api, consoleName, getState, remember, setState, startAccount, startFolder, stored, toast } from "../store.ts";
 import { PromptChips, SavePromptButton, usePrompts } from "./Prompts.tsx";
 
 const Console = lazy(() => import("./Console.tsx"));
@@ -20,7 +20,13 @@ function folderChoices(snap: Snapshot): string[] {
 
 export function NewSessionDialog({ snap }: { snap: Snapshot }) {
   const choices = useMemo(() => folderChoices(snap), []);
-  const [cwd, setCwd] = useState(choices[0] ?? "");
+  // The folder of the account you are on, else the last one you started in.
+  const [cwd, setCwd] = useState(() => startFolder(getState()) ?? choices[0] ?? "");
+  const folderPicked = useRef(false);
+  const pickCwd = (folder: string) => {
+    folderPicked.current = true;
+    setCwd(folder);
+  };
   const [typed, setTyped] = useState(choices.length === 0 && !native);
   const draft = useMemo(() => getState().draft, []);
   const [prompt, setPrompt] = useState(draft?.text ?? "");
@@ -83,14 +89,15 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
     if (i < slots.length - 1) slotInput(slots[i + 1])?.focus();
     else void start();
   };
-  // The config folder of another account, or "" for the usual one. The account tab you are on, so New session from
-  // Personal starts on Personal; on All accounts, the one from Settings. Never the last choice: one session on a
-  // personal account must not put the next ones there too.
-  const [account, setAccount] = useState(() => {
-    const tab = accountFilterOf(getState());
-    const first = tab === "default" ? "" : tab || snap.settings.newSessionAccount;
-    return snap.otherAccounts.some((a) => a.dir === first) ? first : "";
-  });
+  // The config folder of another account, or "" for the usual one: the one you are on. Never the last choice: one
+  // session on a personal account must not put the next ones there too.
+  const [account, setAccount] = useState(() => startAccount(getState()));
+  // Another account takes you to its folder, until you pick a folder yourself.
+  const pickAccount = (next: string) => {
+    setAccount(next);
+    const folder = folderPicked.current ? null : startFolder(getState(), next);
+    if (folder) setCwd(folder);
+  };
   const chosen = snap.otherAccounts.find((a) => a.dir === account) ?? null;
   // Claude Code, or another coding agent such as Codex. Claude Code each time: one try of another must not stick.
   const [tool, setTool] = useState("claude");
@@ -123,7 +130,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
 
   const pick = async () => {
     const path = await native?.pickFolder();
-    if (path) setCwd(path);
+    if (path) pickCwd(path);
   };
 
   const canStart = !!cwd.trim() && !starting && snap.setup.tmuxReady;
@@ -189,9 +196,9 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
               <span className="field-label">Folder</span>
               <div className="field-row">
                 {typed ? (
-                  <input className="input mono" placeholder="/Users/you/code/project" value={cwd} autoFocus onChange={(e) => setCwd(e.target.value)} onKeyDown={enterStarts} />
+                  <input className="input mono" placeholder="/Users/you/code/project" value={cwd} autoFocus onChange={(e) => pickCwd(e.target.value)} onKeyDown={enterStarts} />
                 ) : (
-                  <select className="select field-grow" value={cwd} onChange={(e) => setCwd(e.target.value)}>
+                  <select className="select field-grow" value={cwd} onChange={(e) => pickCwd(e.target.value)}>
                     {!choices.includes(cwd) && cwd && <option value={cwd}>{folderName(cwd)} · {cwd}</option>}
                     {choices.map((f) => (
                       <option key={f} value={f}>
@@ -235,7 +242,7 @@ export function NewSessionDialog({ snap }: { snap: Snapshot }) {
             {!agent && snap.otherAccounts.length > 0 && (
               <label className="field">
                 <span className="field-label">Account</span>
-                <select className="select" value={account} onChange={(e) => setAccount(e.target.value)}>
+                <select className="select" value={account} onChange={(e) => pickAccount(e.target.value)}>
                   <option value="">
                     {snap.settings.defaultAccountLabel} · {snap.account.email ?? "not signed in"}
                   </option>

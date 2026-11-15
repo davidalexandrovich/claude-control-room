@@ -5,7 +5,7 @@ import type { AccountRef, ActionResult, ClosePlan, CloseRequest, Session, Worktr
 import { accountByDir, homeDir } from "./homes.ts";
 import { chromeArgs, chromeProfiles, profileOf } from "./chrome.ts";
 import { endClaim, forgetClaims, repoClaims } from "./claims.ts";
-import { folderSetting, settings } from "./config.ts";
+import { accountFolder, folderSetting, settings } from "./config.ts";
 import { git, listWorktrees } from "./git.ts";
 import { prForBranch, type PrRow } from "./github.ts";
 import { stopConsole } from "./console.ts";
@@ -524,8 +524,9 @@ export function openFolder(path: string): ActionResult {
 }
 
 /** A new terminal in Control Room, in the folder from Settings. It shows as a tile once it runs, which is at once. */
-export async function startTerminal(monitor: Monitor): Promise<ActionResult & { pid?: number }> {
-  const folder = folderSetting(settings().terminalFolder);
+/** Opens a terminal in the account's own folder, else in the one Settings has for terminals. */
+export async function startTerminal(monitor: Monitor, account?: unknown): Promise<ActionResult & { pid?: number }> {
+  const folder = (typeof account === "string" && accountFolder(account)) || folderSetting(settings().terminalFolder);
   if (!folder) return { ok: false, message: `That folder is gone: ${settings().terminalFolder}. Pick another in Settings.` };
   const r = await startShell(folder);
   if (!r.ok || !r.name) return r;

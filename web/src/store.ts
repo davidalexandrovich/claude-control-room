@@ -125,8 +125,9 @@ export function useIdeName(): string {
 }
 
 /** A new terminal in Control Room, in the folder from Settings. Its console opens, ready to type. */
+/** Opens a terminal in the folder of the account you are on, else in the one Settings has for terminals. */
 export async function openTerminal(): Promise<void> {
-  const r = (await act("terminal", "/api/terminal", {}, true)) as ActionResult & { pid?: number };
+  const r = (await act("terminal", "/api/terminal", { account: startAccount(getState()) }, true)) as ActionResult & { pid?: number };
   if (r.ok && r.pid) setState({ drawer: r.pid, selected: r.pid, typeInto: r.pid });
 }
 
@@ -241,6 +242,21 @@ export function accountChoices(snap: Snapshot | null): { id: string; label: stri
 /** The account filter in force: none once that account, or every other one, is gone from Settings. */
 export function accountFilterOf(st: State): string {
   return accountChoices(st.snapshot).some((c) => c.id === st.accountFilter) ? st.accountFilter : "";
+}
+
+/**
+ * The account New session and a terminal start on: the one whose tab you are on, so New session from Personal starts on
+ * Personal; on All accounts, the one from Settings. "" is the usual account, else another one's config folder.
+ */
+export function startAccount(st: State): string {
+  const tab = accountFilterOf(st);
+  const id = tab === "default" ? "" : tab || (st.snapshot?.settings.newSessionAccount ?? "");
+  return st.snapshot?.otherAccounts.some((a) => a.dir === id) ? id : "";
+}
+
+/** Where New session and a terminal start for the account, if it has a folder of its own. */
+export function startFolder(st: State, account = startAccount(st)): string | null {
+  return st.snapshot?.settings.accountFolders?.[account] ?? null;
 }
 
 export function setAccountFilter(id: string): void {

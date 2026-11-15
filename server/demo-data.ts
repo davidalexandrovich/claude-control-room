@@ -516,6 +516,7 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       accounts: [PERSONAL],
       defaultAccountLabel: "Work",
       newSessionAccount: "",
+      accountFolders: { "": "/Users/you/code" },
       agents: [],
       prompts: [
         { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity.", model: "opus", effort: "high", mode: "auto" },
