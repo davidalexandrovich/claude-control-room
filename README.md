@@ -91,13 +91,25 @@ Below it, each session is a tile, like a monitor on a wall. Every tile has three
 - **Middle:** the status, big and clear, with buttons when the session needs you.
 - **Bottom:** model · effort · repository, and a ring that shows how full the context window is.
 
-The session you used last comes first: the one you last sent a message, from any terminal, or typed to, answered or changed here.
+The session you used last comes first, in its [folder](#folders): the one you last sent a message, from any terminal, or typed to, answered or changed here.
 Claude's own work does not move a tile, so the wall holds still while sessions run.
 Drag a tile anywhere to put it there. It stays there until you use that session again.
 
 Right-click a tile, or a row in Focus, for everything you can do to that session without opening it:
 answer it, open its console, rename it, change its model, effort and mode with one click each,
-send it to your phone, open its PR, put it first or last, copy its resume command, or close it.
+put it in a folder, send it to your phone, open its PR, put it first or last, copy its resume command, or close it.
+
+### Folders
+
+Sort sessions into folders of your own, such as "Code reviews" or "Troubleshoot".
+Right-click a session and click a folder in its **Folder** row, or **+ New** to make one.
+A session stays in its folder after a restart.
+
+- **In Focus:** each folder has a header over its sessions. Sessions in no folder come last. Click a header to fold it.
+  A folded folder still shows a dot when one of its sessions needs you.
+- **Drag a row** among another folder's rows to move it there.
+- **Right-click a header** to rename the folder, move it up or down, or remove it. Removing a folder keeps its sessions.
+- **On the wall:** the tiles keep each folder together.
 
 ### Answer without leaving
 
@@ -235,7 +247,7 @@ To watch just one session, pop it out to its own window and drag it to any scree
 
 <img src="docs/images/focus.png" alt="Focus layout: one session large on the left, the other sessions in a list on the right">
 
-**Focus** shows one session large, with the others in a list beside it. Press `1` to `9` to switch.
+**Focus** shows one session large, with the others in a list beside it, under their [folders](#folders). Press `1` to `9` to switch.
 
 ### Close cleanly
 

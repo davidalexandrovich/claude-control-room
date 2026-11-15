@@ -14,6 +14,8 @@ import { type HostedPane, hostedName, hostedPanes, isAgentName, isTerminalName, 
 import { agentActivity, allAgents } from "../shared/agents.ts";
 import { agentChoices } from "./agents.ts";
 import { agentUsages } from "./agent-usage.ts";
+import { byFolder } from "../shared/folders.ts";
+import { folderNames, folderOf, setFolder } from "./folders.ts";
 import { ideOf, installedIdes, noteConnectedIdes } from "./ide.ts";
 import { HOME, SUMMARIZER_CWD } from "./paths.ts";
 import { powerState } from "./power.ts";
@@ -245,6 +247,12 @@ export class Monitor {
         return f.entrypoint === "cli" || (cfg.includeIdePanel && f.entrypoint === "claude-vscode");
       }),
     );
+    // /clear starts a new conversation in the same process: it stays in the folder it was in.
+    for (const f of live) {
+      const was = this.files.get(f.pid)?.sessionId;
+      const folder = was && was !== f.sessionId ? folderOf(was) : null;
+      if (folder && !folderOf(f.sessionId)) void setFolder(f.sessionId, folder).catch(() => {});
+    }
     this.files = new Map(live.map((f) => [f.pid, f]));
     for (const pid of [...this.transcripts.keys()]) if (!this.files.has(pid)) this.transcripts.delete(pid);
 
@@ -257,9 +265,10 @@ export class Monitor {
       ...terminals.map((p) => this.buildTerminal(p).catch(() => null)),
       ...agents.map((p) => this.buildAgent(p).catch(() => null)),
     ]);
-    // The one you used last comes first, or where you dropped it. Claude's own work does not count, so the order holds
-    // still while sessions run.
-    const list = sessions.filter((s): s is Session => s !== null).sort((a, b) => b.sortKey - a.sortKey || b.startedAt - a.startedAt);
+    // By folder; in each, the one you used last comes first, or where you dropped it. Claude's own work does not count,
+    // so the order holds still while sessions run.
+    const folders = folderNames();
+    const list = sessions.filter((s): s is Session => s !== null).sort(byFolder(folders));
 
     const [usages, connections] = await Promise.all([latestUsages(all), Promise.all(all.map((h) => statusLineState(h.dir)))]);
     const connection = connections[0];
@@ -278,6 +287,7 @@ export class Monitor {
       agentUsage,
       account: currentAccount(),
       otherAccounts,
+      folders,
       power: powerState(),
       setup: {
         statusLine: connection.statusLine,
@@ -428,6 +438,7 @@ export class Monitor {
       lastActivityAt: Math.max(t?.lastEntryAt ?? 0, f.statusUpdatedAt ?? 0, f.updatedAt ?? 0) || f.startedAt,
       lastUsedAt,
       sortKey: sortKey(f.sessionId, lastUsedAt),
+      folder: folderOf(f.sessionId),
       activity,
       summary,
       firstPrompt: t?.firstPrompt ?? null,
@@ -509,6 +520,7 @@ export class Monitor {
       lastActivityAt: since,
       lastUsedAt,
       sortKey: sortKey(p.name, lastUsedAt),
+      folder: folderOf(p.name),
       activity: {
         kind: command ? "working" : "idle",
         since,

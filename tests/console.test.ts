@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openTarget, targetName } from "../shared/ides.ts";
+import type { Session } from "../shared/types.ts";
 
 const home = mkdtempSync(join(tmpdir(), "cr-home-"));
 process.env.HOME = home;
@@ -312,6 +313,36 @@ describe("other Claude accounts", () => {
     expect(pids([f(1, "a", 100, "cr-0a1b2c3d:@1.%1"), f(2, "a", 200, "fc-advisor:@0.%0")])).toEqual([1]);
     expect(pids([f(2, "a", 200, "fc-advisor:@0.%0"), f(1, "a", 100, "cr-0a1b2c3d:@1.%1")])).toEqual([1]);
     expect(pids([f(1, "a", 100, null), f(2, "a", 200, "dev:@0.%0"), f(3, "b", 50, null)])).toEqual([2, 3]);
+  });
+
+  it("keeps folders and the sessions in them, through a rename, a merge, a move and a removal", async () => {
+    const f = await import("../server/folders.ts");
+    const { byFolder } = await import("../shared/folders.ts");
+    await f.setFolder("s1", "Code reviews");
+    await f.setFolder("s2", "Troubleshoot");
+    await f.setFolder("s3", "Code reviews");
+    expect(f.folderNames()).toEqual(["Code reviews", "Troubleshoot"]);
+    await f.shiftFolder("Troubleshoot", -1);
+    expect(f.folderNames()).toEqual(["Troubleshoot", "Code reviews"]);
+    await f.renameFolder("Code reviews", "Reviews");
+    expect([f.folderOf("s1"), f.folderOf("s3")]).toEqual(["Reviews", "Reviews"]);
+    // Renamed into one that exists, the two become one.
+    await f.renameFolder("Troubleshoot", "Reviews");
+    expect(f.folderNames()).toEqual(["Reviews"]);
+    expect(f.folderOf("s2")).toBe("Reviews");
+    await f.setFolder("s2", null);
+    expect(f.folderOf("s2")).toBeNull();
+    const saved = JSON.parse(readFileSync(join(home, ".claude-control-room", "folders.json"), "utf8"));
+    expect(saved).toEqual({ folders: ["Reviews"], sessions: { s1: "Reviews", s3: "Reviews" } });
+    await f.removeFolder("Reviews");
+    expect([f.folderNames(), f.folderOf("s1")]).toEqual([[], null]);
+    expect(f.cleanFolder("  Bugs\n and   fixes ")).toBe("Bugs and fixes");
+    expect(f.cleanFolder("x".repeat(60))).toHaveLength(f.MAX_FOLDER);
+
+    // The list keeps each folder together, in the folders' order, those in none last.
+    const s = (pid: number, folder: string | null, sortKey: number) => ({ pid, folder, sortKey, startedAt: 0 }) as Session;
+    const sorted = [s(1, null, 900), s(2, "B", 100), s(3, "A", 50), s(4, "B", 300), s(5, "gone", 999)].sort(byFolder(["A", "B"]));
+    expect(sorted.map((x) => x.pid)).toEqual([3, 4, 2, 5, 1]);
   });
 
   it("takes each account's usage from the newest report of its own sessions", async () => {

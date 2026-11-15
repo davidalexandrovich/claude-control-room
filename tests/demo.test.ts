@@ -7,12 +7,17 @@ import { startDemo, type DemoRunning } from "../server/demo.ts";
 const NOW = 1_800_000_000_000;
 
 describe("demo data", () => {
-  it("shows every status a tile can show, the one used last first", () => {
+  it("shows every status a tile can show, by folder, and in each the one used last first", () => {
     const snap = demoSnapshot(NOW, DEMO_MAX_COUNT);
     const kinds = new Set(snap.sessions.map((s) => s.activity.kind));
     for (const kind of ["working", "approval", "question", "background", "idle", "inactive"]) expect(kinds).toContain(kind);
     expect(snap.sessions.some((s) => s.activity.askedYou)).toBe(true);
-    expect(snap.sessions.map((s) => s.sortKey)).toEqual([...snap.sessions.map((s) => s.sortKey)].sort((a, b) => b - a));
+    const folders = [...snap.folders, null];
+    expect(snap.sessions.map((s) => s.folder)).toEqual(folders.flatMap((f) => snap.sessions.filter((s) => s.folder === f).map(() => f)));
+    for (const f of folders) {
+      const keys = snap.sessions.filter((s) => s.folder === f).map((s) => s.sortKey);
+      expect(keys).toEqual([...keys].sort((a, b) => b - a));
+    }
     expect(new Set(snap.sessions.map((s) => s.pid)).size).toBe(snap.sessions.length);
   });
 

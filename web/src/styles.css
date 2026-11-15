@@ -4281,3 +4281,90 @@ body.is-resizing .drawer {
 .agent-form .agent-label {
   flex: 0 0 150px;
 }
+
+/* ---------- folders in the side list ---------- */
+.focus-folder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  margin-top: 6px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font: 600 12px/1.2 var(--font);
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+}
+.focus-list > .focus-folder:first-child {
+  margin-top: 0;
+}
+.focus-folder:hover,
+.focus-folder.has-menu {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+.focus-folder-chev {
+  flex: none;
+  color: var(--text-3);
+  transition: transform 0.15s ease;
+}
+.focus-folder-chev.is-open {
+  transform: rotate(90deg);
+}
+.focus-folder-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.focus-folder-count {
+  margin-left: auto;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.focus-folder-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--approval);
+  font-weight: 600;
+}
+.focus-folder.is-renaming {
+  cursor: default;
+}
+.focus-folder-input.name-input {
+  flex: 1;
+  margin: 0;
+  padding: 2px 6px;
+  font: 600 12px/1.2 var(--font);
+}
+.focus-rule {
+  flex: none;
+  height: 1px;
+  margin: 6px 4px 2px;
+  background: var(--line);
+}
+.folder-menu {
+  width: 230px;
+}
+.folder-menu-note {
+  padding-left: 37px;
+}
+.ctx-pill-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-style: dashed;
+}
+.ctx-pill-input.name-input {
+  flex: none;
+  width: 120px;
+  margin: 0;
+  border-color: rgba(122, 162, 255, 0.55);
+  color: var(--text);
+  cursor: text;
+}

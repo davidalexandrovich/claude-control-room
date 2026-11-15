@@ -39,7 +39,8 @@ export function showInFinder(s: Session): void {
 
 /** To the front or the end of the list, where a drag would put it. */
 export function moveTo(s: Session, where: "front" | "end"): void {
-  const order = getState().snapshot?.sessions ?? [];
+  // The list keeps each folder together, so the front or the end of its own folder.
+  const order = (getState().snapshot?.sessions ?? []).filter((x) => x.folder === s.folder);
   const other = where === "front" ? order[0] : order.at(-1);
   if (!other || other.pid === s.pid) return;
   void act(`${s.pid}:place`, `/api/sessions/${s.pid}/place`, where === "front" ? { below: other.pid } : { above: other.pid }, true);

@@ -34,6 +34,9 @@ export interface State {
   menu: { pid: number; x: number; y: number } | null; // a session's right-click menu, where it opened
   renaming: number | null; // pid whose name is being edited, in its details when they show, else on its tile
   draft: SavedPrompt | null; // the saved prompt New session opens with, as ▶ in the top bar's Prompts leaves it
+  folded: string[]; // the folders shut in the side list
+  folderMenu: { name: string; x: number; y: number } | null; // a folder's right-click menu, where it opened
+  renamingFolder: string | null; // the folder whose name is being edited, in its header
 }
 
 /** How a session's console shows: in its details, folded to its bar, or filling the window. */
@@ -72,6 +75,9 @@ let state: State = {
   panel: null,
   filter: stored<Filter>("cr.filter", "all"),
   accountFilter: stored("cr.accountFilter", ""),
+  folded: stored<string[]>("cr.folded", []),
+  folderMenu: null,
+  renamingFolder: null,
   // The wall shows the cards as chips only. The old one-switch fold carries over as every card folded.
   ovHidden: VIEW.wallOnly ? [...CARDS] : stored<string[]>("cr.ovHidden", stored("cr.overviewCollapsed", false) ? [...CARDS] : []),
   ovBefore: VIEW.wallOnly ? null : stored<string[] | null>("cr.ovBefore", null),
@@ -141,6 +147,29 @@ export function openMenu(e: MouseEvent, pid: number): void {
   e.preventDefault();
   e.stopPropagation();
   setState({ menu: { pid, x: e.clientX, y: e.clientY } });
+}
+
+export function toggleFolded(name: string): void {
+  const folded = state.folded.includes(name) ? state.folded.filter((n) => n !== name) : [...state.folded, name];
+  setState({ folded });
+  remember("cr.folded", folded);
+}
+
+/** Renames, removes or moves a folder. A folder shut in the list stays shut under its new name. */
+export async function editFolder(name: string, change: { rename: string } | { remove: true } | { shift: -1 | 1 }): Promise<ActionResult> {
+  const r = await act(`folder:${name}`, "/api/folders", { name, ...change }, "shift" in change);
+  if (r.ok && state.folded.includes(name) && !("shift" in change)) {
+    const folded = state.folded.filter((n) => n !== name);
+    if ("rename" in change && !folded.includes(change.rename.trim())) folded.push(change.rename.trim());
+    setState({ folded });
+    remember("cr.folded", folded);
+  }
+  return r;
+}
+
+/** Puts the session in a folder, made if it is new; null takes it out. */
+export function setFolder(s: Session, folder: string | null): Promise<ActionResult> {
+  return act(`${s.pid}:folder`, `/api/sessions/${s.pid}/folder`, { folder });
 }
 
 /** The tmux session behind a session that runs here, from Claude Code's "name:@window.%pane". */
