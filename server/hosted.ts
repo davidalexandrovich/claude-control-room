@@ -136,9 +136,13 @@ export function newSessionArgs(name: string, o: StartOptions, shell = process.en
   ];
   const cols = String(Math.max(40, Math.min(400, Math.round(o.cols ?? 120))));
   const rows = String(Math.max(10, Math.min(200, Math.round(o.rows ?? 36))));
-  // Another account: Claude Code finds its login, settings and sessions in the folder CLAUDE_CONFIG_DIR names. It is
-  // set after the shell has read ~/.zshrc, so nothing there points the session elsewhere.
-  const command = o.account ? 'export CLAUDE_CONFIG_DIR="$1"; shift; claude "$@"' : 'claude "$@"';
+  // Another account: Claude Code finds its login, settings and sessions in the folder CLAUDE_CONFIG_DIR names; the
+  // usual one, with none. Both are set after the shell has read ~/.zshrc, so nothing there points the session elsewhere.
+  // The account you picked is the one that runs: `command` skips a claude function of your own, such as one that sends
+  // a folder to another account, and a token in the environment would beat the account's login (and turn its claude.ai
+  // connectors off), so ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN stay out.
+  const run = 'unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN; command claude "$@"';
+  const command = o.account ? `export CLAUDE_CONFIG_DIR="$1"; shift; ${run}` : `unset CLAUDE_CONFIG_DIR; ${run}`;
   // "$@" hands the prompt over as one argument, so nothing in it is read by the shell.
   return ["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", o.cwd, "-x", cols, "-y", rows, shell, "-lic", command, "claude", ...(o.account ? [o.account.dir] : []), ...claude];
 }
