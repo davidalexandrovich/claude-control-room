@@ -304,6 +304,16 @@ describe("other Claude accounts", () => {
     ]);
   });
 
+  it("shows a conversation open in two processes once: the one Control Room runs, else the newest", async () => {
+    const { oneProcessEach } = await import("../server/monitor.ts");
+    const f = (pid: number, sessionId: string, startedAt: number, tmux: string | null) => ({ pid, sessionId, startedAt, tmux });
+    const pids = (files: ReturnType<typeof f>[]) => oneProcessEach(files).map((x) => x.pid);
+    // `claude --continue` from another app's tmux, newer than the one started here.
+    expect(pids([f(1, "a", 100, "cr-0a1b2c3d:@1.%1"), f(2, "a", 200, "fc-advisor:@0.%0")])).toEqual([1]);
+    expect(pids([f(2, "a", 200, "fc-advisor:@0.%0"), f(1, "a", 100, "cr-0a1b2c3d:@1.%1")])).toEqual([1]);
+    expect(pids([f(1, "a", 100, null), f(2, "a", 200, "dev:@0.%0"), f(3, "b", 50, null)])).toEqual([2, 3]);
+  });
+
   it("takes each account's usage from the newest report of its own sessions", async () => {
     const { homes } = await import("../server/homes.ts");
     const { latestUsages } = await import("../server/statusline.ts");

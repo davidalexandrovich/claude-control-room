@@ -84,6 +84,20 @@ async function readHomeSessions(home: Home): Promise<SessionFile[]> {
   return files.filter((f): f is SessionFile => f !== null && f.pid > 0 && !!f.sessionId);
 }
 
+/** One process per conversation. `claude --continue` in a folder whose last conversation is still open starts a second
+ * process on the same session, so it would show as a second tab of the same chat, and the status, permission prompt
+ * and notifications, which go by session, would flip between the two. Keep the one Control Room runs, else the newest:
+ * a choice that holds still, so the tab, its terminal and what you selected stay put. */
+export function oneProcessEach<T extends Pick<SessionFile, "sessionId" | "startedAt" | "tmux">>(files: T[]): T[] {
+  const kept = new Map<string, T>();
+  const ours = (f: T) => hostedName(f.tmux) !== null;
+  for (const f of files) {
+    const had = kept.get(f.sessionId);
+    if (!had || (ours(f) !== ours(had) ? ours(f) : f.startedAt > had.startedAt)) kept.set(f.sessionId, f);
+  }
+  return files.filter((f) => kept.get(f.sessionId) === f);
+}
+
 function encodeProjectDir(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, "-");
 }
@@ -223,12 +237,14 @@ export class Monitor {
       this.effortDefaults = new Map(await Promise.all(all.map(async (h) => [h.dir, await defaultEffort(h.dir)] as const)));
       this.effortReadAt = Date.now();
     }
-    const live = files.filter((f) => {
-      const p = procs.get(f.pid);
-      if (!p || !isClaudeComm(p.comm) || f.kind !== "interactive") return false;
-      if (f.cwd.startsWith(SUMMARIZER_CWD)) return false;
-      return f.entrypoint === "cli" || (cfg.includeIdePanel && f.entrypoint === "claude-vscode");
-    });
+    const live = oneProcessEach(
+      files.filter((f) => {
+        const p = procs.get(f.pid);
+        if (!p || !isClaudeComm(p.comm) || f.kind !== "interactive") return false;
+        if (f.cwd.startsWith(SUMMARIZER_CWD)) return false;
+        return f.entrypoint === "cli" || (cfg.includeIdePanel && f.entrypoint === "claude-vscode");
+      }),
+    );
     this.files = new Map(live.map((f) => [f.pid, f]));
     for (const pid of [...this.transcripts.keys()]) if (!this.files.has(pid)) this.transcripts.delete(pid);
 
