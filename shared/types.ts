@@ -122,6 +122,7 @@ export interface Session {
   lastActivityAt: number;
   lastUsedAt: number; // when you last sent it a message or did something to it here
   sortKey: number; // the list runs from the biggest down: lastUsedAt, or where you dropped the card
+  folder: string | null; // the folder you put it in, one of Snapshot.folders
   activity: Activity;
   summary: Summary;
   firstPrompt: string | null;
@@ -255,6 +256,7 @@ export interface Snapshot {
   agentUsage: AgentUsage[]; // the other coding agents that report their limits
   account: Account;
   otherAccounts: OtherAccount[]; // in the order of Settings
+  folders: string[]; // the folders you sort sessions into, in the order the list shows them
   power: PowerState;
   setup: SetupState;
   settings: Settings;

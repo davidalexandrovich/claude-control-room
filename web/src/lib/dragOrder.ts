@@ -19,8 +19,11 @@ function nearest(cards: HTMLElement[], x: number, y: number): HTMLElement | null
   return best;
 }
 
-/** A ref for the element that holds the cards (`item` finds them in it); `axis` is how they line up. */
-export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y"): (el: HTMLElement | null) => void {
+/**
+ * A ref for the element that holds the cards (`item` finds them in it); `axis` is how they line up. With `regroup`,
+ * a card dropped among another folder's cards joins that folder: the list shows folders under headers then.
+ */
+export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y", regroup = false): (el: HTMLElement | null) => void {
   const list = useRef(sessions);
   list.current = sessions;
   const detach = useRef<(() => void) | null>(null);
@@ -78,7 +81,16 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y")
       const index = rest.findIndex((s) => s.pid === target.pid);
       if (index < 0) return; // the card it was dropped on has left the list meanwhile
       const at = index + (target.side === "after" ? 1 : 0);
-      void api(`/api/sessions/${pid}/place`, { above: rest[at - 1]?.pid ?? null, below: rest[at]?.pid ?? null }).catch(() => null);
+      const from = list.current.find((s) => s.pid === pid)?.folder ?? null;
+      const into = regroup ? rest[index].folder : from;
+      // Only a neighbour in the same folder says where it goes: the order runs on inside each folder.
+      const near = (s: Session | undefined) => (s && s.folder === into ? s.pid : null);
+      const [above, below] = [near(rest[at - 1]), near(rest[at])];
+      // Dropped among another folder's cards where that does not move it there: it stays where it was.
+      if (into === from && above === null && below === null) return;
+      const place = () => api(`/api/sessions/${pid}/place`, { above, below });
+      // Into the folder first, so the place it gets is among its new neighbours.
+      void (into !== from ? api(`/api/sessions/${pid}/folder`, { folder: into }).then(place) : place()).catch(() => null);
     };
     const end = () => {
       unmark();
@@ -101,5 +113,5 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y")
       el.removeEventListener("dragend", end);
       el.removeEventListener("dragleave", leave);
     };
-  }, [item, axis]);
+  }, [item, axis, regroup]);
 }

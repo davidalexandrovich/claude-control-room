@@ -14,6 +14,7 @@ import { agentTool } from "./agents.ts";
 import { chosenIde, openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { findTranscript, noteMode, readSessionFiles, type SessionFile } from "./monitor.ts";
+import { cleanFolder, folderNames, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
 import { cleanName, saveName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
 import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
@@ -288,6 +289,53 @@ export async function placeSession(monitor: Monitor, pid: number, b: { above?: u
   return { ok: true, message: "Moved" };
 }
 
+/** Puts the session in a folder, made if it is new; null takes it out of its folder. */
+export async function folderSession(monitor: Monitor, pid: number, raw: unknown): Promise<ActionResult> {
+  const s = find(monitor, pid);
+  if (!s) return { ok: false, message: "That session is gone." };
+  const folder = raw === null ? null : cleanFolder(raw);
+  if (raw !== null && !folder) return { ok: false, message: "Type a folder name first." };
+  if (folder === s.folder) return { ok: true, message: folder ? `Already in “${folder}”` : "It is in no folder" };
+  try {
+    await setFolder(s.sessionId, folder);
+  } catch (err) {
+    return { ok: false, message: `The folder was not saved: ${(err as Error).message}` };
+  }
+  await monitor.fresh();
+  return { ok: true, message: folder ? `Moved to “${folder}”` : `Taken out of “${s.folder}”` };
+}
+
+/** Renames, removes or moves a folder. Removing one leaves its sessions out of any folder. */
+export async function editFolder(
+  monitor: Monitor,
+  b: { name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown },
+): Promise<ActionResult> {
+  const name = typeof b.name === "string" && folderNames().includes(b.name) ? b.name : null;
+  if (!name) return { ok: false, message: "That folder is gone." };
+  let message: string;
+  try {
+    if (b.rename !== undefined) {
+      const to = cleanFolder(b.rename);
+      if (!to) return { ok: false, message: "Type a folder name first." };
+      const into = to !== name && folderNames().includes(to);
+      await renameFolder(name, to);
+      message = into ? `“${name}” joined “${to}”` : `Renamed to “${to}”`;
+    } else if (b.remove === true) {
+      await removeFolder(name);
+      message = `Removed “${name}”. Its sessions are still here.`;
+    } else if (b.shift === -1 || b.shift === 1) {
+      await shiftFolder(name, b.shift);
+      message = "Moved";
+    } else {
+      return { ok: false, message: "Nothing to change" };
+    }
+  } catch (err) {
+    return { ok: false, message: `The folder was not saved: ${(err as Error).message}` };
+  }
+  await monitor.fresh();
+  return { ok: true, message };
+}
+
 export async function focusSession(monitor: Monitor, pid: number): Promise<ActionResult> {
   const s = find(monitor, pid);
   if (!s) return { ok: false, message: "That session is gone." };
@@ -436,11 +484,10 @@ export async function moveSession(monitor: Monitor, pid: number): Promise<Action
     const pidHere = fileHere?.pid ?? null;
     if (!pidHere && (await hostedSessions())?.has(r.name) === false) return { ok: false, message: `It stopped, but did not start here. ${resumeHint}` };
     if (fileHere && keep.mode) noteMode(fileHere.sessionId, keep.mode);
+    const moved = pidHere ? (await readSessionFiles()).find((x) => x.pid === pidHere) : null;
     // A VS Code tab's name stays with the tab, so it comes along as a name saved here.
-    if (pidHere && (s.nameSource === "tab" || s.nameSource === "saved")) {
-      const moved = (await readSessionFiles()).find((x) => x.pid === pidHere);
-      if (moved && (s.nameSource === "tab" || moved.sessionId !== s.sessionId)) await saveName(moved.sessionId, s.name).catch(() => {});
-    }
+    if (moved && (s.nameSource === "tab" || (s.nameSource === "saved" && moved.sessionId !== s.sessionId))) await saveName(moved.sessionId, s.name).catch(() => {});
+    if (moved && s.folder && moved.sessionId !== s.sessionId) await setFolder(moved.sessionId, s.folder).catch(() => {});
     await monitor.fresh();
     return pidHere
       ? { ok: true, message: "Moved to Control Room. Its old terminal tab can be closed.", pid: pidHere, name: r.name }

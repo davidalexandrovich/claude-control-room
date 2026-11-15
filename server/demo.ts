@@ -6,6 +6,8 @@ import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
 import { isEffort, isMode, modeName, MODELS } from "../shared/claude.ts";
 import { keyBetween } from "./order.ts";
+import { byFolder } from "../shared/folders.ts";
+import { cleanFolder } from "./folders.ts";
 import { ideName, isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { withPrompt } from "../shared/prompts.ts";
 import { withAgent } from "../shared/agents.ts";
@@ -94,9 +96,18 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         const b = await body<{ above?: unknown; below?: unknown }>(req);
         const keyOf = (other: unknown) => (typeof other === "number" && other !== pid ? (find(other)?.sortKey ?? null) : null);
         const sortKey = keyBetween(keyOf(b.above), keyOf(b.below), Date.now());
-        snap = { ...snap, sessions: snap.sessions.map((x) => (x.pid === pid ? { ...x, sortKey } : x)).sort((x, y) => y.sortKey - x.sortKey) };
+        snap = { ...snap, sessions: snap.sessions.map((x) => (x.pid === pid ? { ...x, sortKey } : x)).sort(byFolder(snap.folders)) };
         publish();
         return { ok: true, message: "Moved" };
+      }
+      case "folder": {
+        const raw = (await body<{ folder?: unknown }>(req)).folder ?? null;
+        const folder = raw === null ? null : cleanFolder(raw);
+        if (raw !== null && !folder) return { ok: false, message: "Type a folder name first." };
+        const folders = folder && !snap.folders.includes(folder) ? [...snap.folders, folder] : snap.folders;
+        snap = { ...snap, folders, sessions: snap.sessions.map((x) => (x.pid === pid ? { ...x, folder } : x)).sort(byFolder(folders)) };
+        publish();
+        return { ok: true, message: folder ? `Moved to “${folder}”` : `Taken out of “${s.folder}”` };
       }
       case "model": {
         const model = (await body<{ model?: unknown }>(req)).model;
@@ -150,7 +161,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
     }
     if (req.method !== "POST") return send(res, 404, { ok: false, message: "Not found" });
 
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|ide|close|remote|rename|move|model|effort|mode|place)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|ide|close|remote|rename|move|model|effort|mode|place|folder)$/.exec(p);
     if (m) {
       const out = await sessionAction(Number(m[1]), m[2], req);
       return send(res, out ? 200 : 404, out ?? { ok: false, message: "Unknown action" });
@@ -162,6 +173,31 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         return send(res, 200, { ok: false, message: "In the app, this pulls the new commits, builds Control Room again and restarts it." });
       case "/api/sessions/new":
         return send(res, 200, { ok: false, message: "In the app, this starts Claude Code in the folder you pick, with a console here." });
+      case "/api/folders": {
+        const b = await body<{ name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown }>(req);
+        const name = typeof b.name === "string" && snap.folders.includes(b.name) ? b.name : null;
+        if (!name) return send(res, 200, { ok: false, message: "That folder is gone." });
+        let folders = snap.folders;
+        let to: string | null = name;
+        if (b.rename !== undefined) {
+          to = cleanFolder(b.rename);
+          if (!to) return send(res, 200, { ok: false, message: "Type a folder name first." });
+          folders = folders.includes(to) ? folders.filter((f) => f !== name) : folders.map((f) => (f === name ? to! : f));
+        } else if (b.remove === true) {
+          [folders, to] = [folders.filter((f) => f !== name), null];
+        } else if (b.shift === -1 || b.shift === 1) {
+          const at = folders.indexOf(name);
+          const next = at + b.shift;
+          if (next >= 0 && next < folders.length) {
+            folders = [...folders];
+            [folders[at], folders[next]] = [folders[next], folders[at]];
+          }
+        }
+        const moved = snap.sessions.map((x) => (x.folder === name ? { ...x, folder: to } : x));
+        snap = { ...snap, folders, sessions: moved.sort(byFolder(folders)) };
+        publish();
+        return send(res, 200, { ok: true, message: "Done" });
+      }
       case "/api/terminal":
         return send(res, 200, { ok: true, message: `In the app, this opens a terminal here, in ${snap.settings.terminalFolder}.` });
       case "/api/settings": {

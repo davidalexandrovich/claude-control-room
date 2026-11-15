@@ -35,6 +35,7 @@ import {
   toPhone,
 } from "../lib/sessionActions.ts";
 import { act, closeName, openInIde, openSession, setState, useIdeName, useOpenName, useStore } from "../store.ts";
+import { FolderPicker } from "./Folders.tsx";
 import { NameEditor, openUrl } from "./Monitor.tsx";
 import { StatusOrb } from "./Primitives.tsx";
 import { blocked, type What } from "./Tuning.tsx";
@@ -126,8 +127,10 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
   const box = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ left: x, top: y, visibility: "hidden" });
   const [renaming, setRenaming] = useState(false);
+  const [addingFolder, setAddingFolder] = useState(false);
+  // A name being typed, the session's or a new folder's: Esc and clicks away end the typing, not the menu.
   const renamingNow = useRef(false);
-  renamingNow.current = renaming;
+  renamingNow.current = renaming || addingFolder;
   const busy = useStore((st) => st.busy);
   const order = useStore((st) => st.snapshot?.sessions);
   const tmuxReady = useStore((st) => st.snapshot?.setup.tmuxReady ?? false);
@@ -188,8 +191,10 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
   const q = a.question;
   const idle = a.kind === "idle" || a.kind === "inactive";
   const remoteOn = s.remoteUrl !== null;
-  const first = order?.[0];
-  const last = order?.[order.length - 1];
+  // To the front or the end of its folder: the list keeps each folder together.
+  const mine = order?.filter((x) => x.folder === s.folder);
+  const first = mine?.[0];
+  const last = mine?.[mine.length - 1];
   const move = async () => {
     const r = (await act(`${s.pid}:move`, `/api/sessions/${s.pid}/move`)) as { ok: boolean; pid?: number };
     if (r.ok && r.pid) setState({ drawer: r.pid, selected: r.pid, typeInto: r.pid });
@@ -266,6 +271,10 @@ function Menu({ s, x, y }: { s: Session; x: number; y: number }) {
           <TuneRows s={s} />
         </div>
       )}
+
+      <div className="ctx-group">
+        <FolderPicker s={s} adding={addingFolder} setAdding={setAddingFolder} done={close} />
+      </div>
 
       <div className="ctx-group">
         {!s.terminal && (

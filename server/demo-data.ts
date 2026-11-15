@@ -1,6 +1,7 @@
 // Sample sessions for the demo and the README screenshots. Every name, path and number here is made up,
 // but each status goes through the same rules as a live session (deriveActivity and verdictFor).
 import type { ChatLine, Claim, ClosePlan, GitInfo, PullRequest, Session, Snapshot, Story, WorktreeReport } from "../shared/types.ts";
+import { byFolder } from "../shared/folders.ts";
 import { deriveActivity, type StatusFile } from "./activity.ts";
 import { emptyState, modelName, type ToolUse } from "./transcript.ts";
 import { verdictFor, type WorktreeFacts } from "./worktrees.ts";
@@ -31,6 +32,7 @@ interface Seed {
   claim?: string[]; // paths the session claimed in the repo's worktree registry
   remote?: boolean; // on Remote Control, so it is in the Claude app too
   personal?: boolean; // on the second Claude account
+  folder?: string; // one of DEMO_FOLDERS
   model: string;
   effort: string;
   context: number;
@@ -53,6 +55,7 @@ const SEEDS: Seed[] = [
   {
     pid: 48211,
     name: "Flaky checkout test",
+    folder: "Bugs",
     repo: "storefront",
     worktree: "storefront-checkout-flake",
     branch: "fix/checkout-flake",
@@ -157,6 +160,7 @@ const SEEDS: Seed[] = [
   {
     pid: 47702,
     name: "Release notes for v2.4",
+    folder: "Docs",
     repo: "docs",
     branch: "docs/release-2-4",
     started: 110,
@@ -200,6 +204,7 @@ const SEEDS: Seed[] = [
   {
     pid: 47311,
     name: "Faster search results",
+    folder: "Bugs",
     repo: "storefront",
     worktree: "storefront-search-speed",
     branch: "perf/search-results",
@@ -248,6 +253,7 @@ const SEEDS: Seed[] = [
   {
     pid: 48302,
     name: "Memory leak in the worker",
+    folder: "Bugs",
     repo: "payments-api",
     branch: "fix/worker-memory",
     started: 9,
@@ -330,6 +336,7 @@ const SEEDS: Seed[] = [
 ];
 
 export const DEMO_DEFAULT_COUNT = 8;
+const DEMO_FOLDERS = ["Bugs", "Docs"];
 export const DEMO_MAX_COUNT = SEEDS.length;
 
 const STATUS_FILE: Record<Status, [string | null, string | null]> = {
@@ -400,6 +407,7 @@ function sessionOf(s: Seed, now: number): Session {
     lastActivityAt: s.status === "busy" ? now : since,
     lastUsedAt: Math.max(startedAt, since),
     sortKey: Math.max(startedAt, since),
+    folder: s.folder ?? null,
     activity: deriveActivity(file, transcript, now, INACTIVE_AFTER),
     summary: { headline: s.headline, now: s.now, source: "ai", updatedAt: since },
     firstPrompt: chat[0]?.text ?? null,
@@ -436,10 +444,11 @@ const PERSONAL = { label: "Personal", dir: "/Users/you/.claude-personal" };
 export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot {
   const sessions = SEEDS.slice(0, Math.max(1, Math.min(count, SEEDS.length)))
     .map((s) => sessionOf(s, now))
-    .sort((a, b) => b.lastUsedAt - a.lastUsedAt || b.startedAt - a.startedAt);
+    .sort(byFolder(DEMO_FOLDERS));
   return {
     at: now,
     sessions,
+    folders: DEMO_FOLDERS,
     usage: {
       fiveHour: { usedPercent: 42, resetsAt: now + 134 * MIN },
       sevenDay: { usedPercent: 61, resetsAt: now + 77 * 60 * MIN },

@@ -25,6 +25,8 @@ import {
   pruneWorktrees,
   removeWorktrees,
   placeSession,
+  folderSession,
+  editFolder,
   renameSession,
   setEffort,
   setMode,
@@ -77,7 +79,7 @@ async function cleanOldTaps(): Promise<void> {
 // Actions that count as using a session, so it moves to the front of the list. Closing and renaming do not.
 const USED_BY = new Set(["approve", "reject", "answer", "focus", "remote", "move", "model", "effort", "mode"]);
 // What a terminal can do; the rest would type Claude Code's keys and commands into a shell.
-const FOR_TERMINALS = new Set(["focus", "ide", "close", "rename", "place"]);
+const FOR_TERMINALS = new Set(["focus", "ide", "close", "rename", "place", "folder"]);
 
 export async function startServer(opts: { port?: number; dev?: boolean; installUpdate?: (builtApp: string) => void } = {}): Promise<Running> {
   await mkdir(APP_DIR, { recursive: true });
@@ -121,6 +123,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
         return setMode(monitor, pid, (await body<{ mode?: unknown }>(req)).mode);
       case "place":
         return placeSession(monitor, pid, await body<{ above?: unknown; below?: unknown }>(req));
+      case "folder":
+        return folderSession(monitor, pid, (await body<{ folder?: unknown }>(req)).folder ?? null);
     }
     return null;
   };
@@ -228,7 +232,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
       if (used) noteUsed(used.sessionId);
       return send(res, 200, { ok, message: ok ? "Sent" : "That console is closed." });
     }
-    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|ide|close|remote|rename|move|model|effort|mode|place)$/.exec(p);
+    m = /^\/api\/sessions\/(\d+)\/(approve|reject|answer|focus|ide|close|remote|rename|move|model|effort|mode|place|folder)$/.exec(p);
     if (m) {
       const sessionId = monitor.snapshot?.sessions.find((s) => s.pid === Number(m![1]))?.sessionId;
       const out = await sessionAction(Number(m[1]), m[2], req);
@@ -243,6 +247,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
         return send(res, 200, startUpdate());
       case "/api/sessions/new":
         return send(res, 200, await newSession(monitor, await body<Parameters<typeof newSession>[1]>(req)));
+      case "/api/folders":
+        return send(res, 200, await editFolder(monitor, await body<Parameters<typeof editFolder>[1]>(req)));
       case "/api/terminal":
         return send(res, 200, await startTerminal(monitor));
       case "/api/open": {
