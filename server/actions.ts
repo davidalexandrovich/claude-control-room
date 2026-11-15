@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias, MODELS } from "../shared/claude.ts";
 import { openTarget } from "../shared/ides.ts";
-import type { ActionResult, ClosePlan, CloseRequest, Session, WorktreeReport } from "../shared/types.ts";
+import type { AccountRef, ActionResult, ClosePlan, CloseRequest, Session, WorktreeReport } from "../shared/types.ts";
 import { accountByDir, homeDir } from "./homes.ts";
 import { chromeArgs, chromeProfiles, profileOf } from "./chrome.ts";
 import { endClaim, forgetClaims, repoClaims } from "./claims.ts";
@@ -407,7 +407,7 @@ interface NewSessionBody {
 }
 
 /** Starts Claude Code in Control Room, in a folder of your choice, with an optional first message. */
-export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<ActionResult & { pid?: number; name?: string }> {
+export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<ActionResult & { pid?: number; name?: string; note?: string }> {
   const prompt = typeof b.prompt === "string" && b.prompt.trim() ? b.prompt.trim() : null;
   if (b.tool !== undefined && b.tool !== "claude") return newAgentSession(monitor, b.tool, typeof b.cwd === "string" ? b.cwd : "", prompt);
   // Left out, each one is Claude Code's own default.
@@ -424,9 +424,20 @@ export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<A
   if (!file && (await hostedSessions())?.has(r.name) === false) return { ok: false, message: STOPPED_AT_START };
   if (file && mode) noteMode(file.sessionId, mode);
   await monitor.fresh();
+  const note = file ? landedElsewhere(account, file.account, settings().defaultAccountLabel) : null;
   return file
-    ? { ok: true, message: "Started", pid: file.pid, name: r.name }
+    ? { ok: true, message: "Started", pid: file.pid, name: r.name, ...(note ? { note } : {}) }
     : { ok: true, message: "Claude Code asks something first. Answer it in the console.", name: r.name };
+}
+
+/**
+ * Pure: what to tell you when a session runs on another account than the one you picked, else null. Your shell has the
+ * last word: a claude function in ~/.zshrc can point a folder at an account of its own.
+ */
+export function landedElsewhere(picked: AccountRef | null, landed: AccountRef | null, usual: string): string | null {
+  if ((picked?.dir ?? null) === (landed?.dir ?? null)) return null;
+  const on = landed?.label ?? usual;
+  return `Started on ${on}, not ${picked?.label ?? usual}. Your shell runs claude in this folder on ${on}.`;
 }
 
 const STOPPED_AT_START = "Claude Code stopped right after it started. Run claude in that folder in a terminal once to see why.";

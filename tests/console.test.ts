@@ -293,6 +293,14 @@ describe("other Claude accounts", () => {
     if (mtime) utimesSync(file, mtime / 1000, mtime / 1000);
   };
 
+  it("says so when your shell starts a session on another account than the one picked", async () => {
+    const { landedElsewhere } = await import("../server/actions.ts");
+    expect(landedElsewhere(null, null, "Work")).toBeNull();
+    expect(landedElsewhere(personal, { ...personal }, "Work")).toBeNull();
+    expect(landedElsewhere(null, personal, "Work")).toBe("Started on Personal, not Work. Your shell runs claude in this folder on Personal.");
+    expect(landedElsewhere(personal, null, "Work")).toBe("Started on Work, not Personal. Your shell runs claude in this folder on Work.");
+  });
+
   it("reads the sessions of every account, each marked with its account", async () => {
     const { homes } = await import("../server/homes.ts");
     const { readSessionFiles } = await import("../server/monitor.ts");
