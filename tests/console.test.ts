@@ -18,6 +18,10 @@ beforeAll(async () => {
   consoles = await import("../server/console.ts");
 });
 
+// The account picked runs: no claude function of your own, no token in the environment, no config folder but its own.
+const RUN = 'unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN; command claude "$@"';
+const USUAL = `unset CLAUDE_CONFIG_DIR; ${RUN}`;
+
 describe("hosted sessions", () => {
   it("knows its own session names only", () => {
     expect(hosted.isHostedName("cr-0a1b2c3d")).toBe(true);
@@ -33,7 +37,7 @@ describe("hosted sessions", () => {
   it("hands the first message to Claude Code as one argument, never to the shell", () => {
     const prompt = `fix "this"; rm -rf ~ $(whoami) \`id\``;
     const args = hosted.newSessionArgs("cr-0a1b2c3d", { cwd: "/repo", prompt, cols: 1000, rows: 2 }, "/bin/zsh");
-    expect(args.slice(-6)).toEqual(["/bin/zsh", "-lic", 'claude "$@"', "claude", "--", prompt]);
+    expect(args.slice(-6)).toEqual(["/bin/zsh", "-lic", USUAL, "claude", "--", prompt]);
     expect(args).toContain("new-session");
     expect(args[args.indexOf("-x") + 1]).toBe("400");
     expect(args[args.indexOf("-y") + 1]).toBe("10");
@@ -46,8 +50,17 @@ describe("hosted sessions", () => {
 
   it("starts Claude Code on another account by its config folder, and on the usual one without", () => {
     const args = hosted.newSessionArgs("cr-0a1b2c3d", { cwd: "/repo", prompt: "hi", account: { label: "Personal", dir: "/Users/me/my claude" } }, "/bin/zsh");
-    expect(args.slice(args.indexOf("/bin/zsh"))).toEqual(["/bin/zsh", "-lic", 'export CLAUDE_CONFIG_DIR="$1"; shift; claude "$@"', "claude", "/Users/me/my claude", "--", "hi"]);
-    expect(hosted.newSessionArgs("cr-0a1b2c3d", { cwd: "/repo", prompt: "hi" }, "/bin/zsh").slice(-5)).toEqual(["-lic", 'claude "$@"', "claude", "--", "hi"]);
+    expect(args.slice(args.indexOf("/bin/zsh"))).toEqual(["/bin/zsh", "-lic", `export CLAUDE_CONFIG_DIR="$1"; shift; ${RUN}`, "claude", "/Users/me/my claude", "--", "hi"]);
+    expect(hosted.newSessionArgs("cr-0a1b2c3d", { cwd: "/repo", prompt: "hi" }, "/bin/zsh").slice(-5)).toEqual(["-lic", USUAL, "claude", "--", "hi"]);
+    // A claude function of your own, a token or a config folder from your shell does not change the account picked.
+    const bin = mkdtempSync(join(tmpdir(), "cr-bin-"));
+    writeFileSync(join(bin, "claude"), '#!/bin/sh\necho "real ${CLAUDE_CONFIG_DIR:-usual} ${ANTHROPIC_API_KEY:-}${CLAUDE_CODE_OAUTH_TOKEN:-} $*"\n', { mode: 0o755 });
+    const shell = (command: string, ...args: string[]) =>
+      execFileSync("/bin/sh", ["-c", `claude() { echo function; }; ${command}`, "claude", ...args], {
+        env: { PATH: `${bin}:/usr/bin:/bin`, ANTHROPIC_API_KEY: "key", CLAUDE_CODE_OAUTH_TOKEN: "token", CLAUDE_CONFIG_DIR: "/zshrc" },
+      }).toString().trim();
+    expect(shell(USUAL, "--", "hi")).toBe("real usual  -- hi");
+    expect(shell(`export CLAUDE_CONFIG_DIR="$1"; shift; ${RUN}`, "/p", "--", "hi")).toBe("real /p  -- hi");
     // One that Control Room was started with stays out of every session.
     expect(hosted.sessionEnv({ PATH: "/bin", CLAUDE_CONFIG_DIR: "/elsewhere" }).CLAUDE_CONFIG_DIR).toBeUndefined();
   });
@@ -293,12 +306,12 @@ describe("other Claude accounts", () => {
     if (mtime) utimesSync(file, mtime / 1000, mtime / 1000);
   };
 
-  it("says so when your shell starts a session on another account than the one picked", async () => {
+  it("says so when a session starts on another account than the one picked", async () => {
     const { landedElsewhere } = await import("../server/actions.ts");
     expect(landedElsewhere(null, null, "Work")).toBeNull();
     expect(landedElsewhere(personal, { ...personal }, "Work")).toBeNull();
-    expect(landedElsewhere(null, personal, "Work")).toBe("Started on Personal, not Work. Your shell runs claude in this folder on Personal.");
-    expect(landedElsewhere(personal, null, "Work")).toBe("Started on Work, not Personal. Your shell runs claude in this folder on Work.");
+    expect(landedElsewhere(null, personal, "Work")).toBe("Started on Personal, not Work.");
+    expect(landedElsewhere(personal, null, "Work")).toBe("Started on Work, not Personal.");
   });
 
   it("reads the sessions of every account, each marked with its account", async () => {

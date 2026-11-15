@@ -431,13 +431,13 @@ export async function newSession(monitor: Monitor, b: NewSessionBody): Promise<A
 }
 
 /**
- * Pure: what to tell you when a session runs on another account than the one you picked, else null. Your shell has the
- * last word: a claude function in ~/.zshrc can point a folder at an account of its own.
+ * Pure: what to tell you when a session runs on another account than the one you picked, else null. Control Room
+ * starts it on that account, so this only happens when something it does not know of sends Claude Code elsewhere.
  */
 export function landedElsewhere(picked: AccountRef | null, landed: AccountRef | null, usual: string): string | null {
   if ((picked?.dir ?? null) === (landed?.dir ?? null)) return null;
   const on = landed?.label ?? usual;
-  return `Started on ${on}, not ${picked?.label ?? usual}. Your shell runs claude in this folder on ${on}.`;
+  return `Started on ${on}, not ${picked?.label ?? usual}.`;
 }
 
 const STOPPED_AT_START = "Claude Code stopped right after it started. Run claude in that folder in a terminal once to see why.";
