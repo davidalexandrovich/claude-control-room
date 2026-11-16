@@ -11,7 +11,7 @@ import { chosenIde, ideOf, openInIde } from "../server/ide.ts";
 import { cleanName, MAX_NAME, pickName, tabName, type NameParts } from "../server/names.ts";
 import { BROWSER_BODY, signInUrl } from "../server/account.ts";
 import { etimeSeconds, loginAgeFrom, loginShellPath, mergePath } from "../server/proc.ts";
-import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal, remoteUrl } from "../server/remote.ts";
+import { bridgeIdOf, CLEAR_DRAFT, REMOTE_COMMAND, remoteCommand, remoteRefusal, remoteTitle, remoteUrl } from "../server/remote.ts";
 import { openSince, type PrRow, summarizeChecks } from "../server/github.ts";
 import { findStoryId } from "../server/shortcut.ts";
 import { HOOK_BODY, tapScript, withConnection, withoutConnection } from "../server/statusline.ts";
@@ -677,6 +677,15 @@ describe("remote control", () => {
     expect(CLEAR_DRAFT.map(([text]) => text).join("")).toMatch(/^\u0005\u0015+$/);
     expect(CLEAR_DRAFT.map(([, key]) => key)).toEqual(["C-e", "C-u", "C-u", "C-u", "C-u", "C-u", "C-u"]);
     expect(REMOTE_COMMAND).toBe("/remote-control ");
+  });
+
+  it("gives claude.ai the name the tile shows, on one line, and a space after it", () => {
+    expect(remoteCommand(remoteTitle("Review #812", "story"))).toBe("/remote-control Review #812 ");
+    expect(remoteTitle("  Fix\n the\tcart\u0007 ", "saved")).toBe("Fix the cart");
+    expect(remoteTitle("x".repeat(150), "title")).toHaveLength(100);
+    // "New session" is a placeholder: claude.ai then titles the session itself.
+    expect(remoteTitle("New session", "new")).toBe("");
+    expect(remoteCommand(remoteTitle("   ", "custom"))).toBe("/remote-control ");
   });
 });
 

@@ -3,6 +3,18 @@
 // The space closes the command menu, so Enter runs this command and never a suggestion still on screen.
 export const REMOTE_COMMAND = "/remote-control ";
 
+/** The name claude.ai gets for the session: its name here on one line, or "" while it is only "New session". */
+export function remoteTitle(name: string, nameSource: string): string {
+  if (nameSource === "new") return "";
+  return name.replace(/[\s\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 100).trim();
+}
+
+/** /remote-control with the session's name, so claude.ai shows the name Control Room shows. */
+export function remoteCommand(title: string): string {
+  // The trailing space also closes a suggestion menu that a "#" or "@" in the name opened.
+  return title ? `${REMOTE_COMMAND}${title} ` : REMOTE_COMMAND;
+}
+
 /** Ctrl+E, then Ctrl+U six times: clears an unsent draft of up to three lines. Ctrl+Y in the session brings it back. */
 export const CLEAR_DRAFT: [text: string, tmuxKey: string][] = [["\u0005", "C-e"], ...Array.from({ length: 6 }, (): [string, string] => ["\u0015", "C-u"])];
 
