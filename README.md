@@ -257,6 +257,12 @@ To watch just one session, pop it out to its own window and drag it to any scree
 
 **Focus** shows one session large, with the others in a list beside it, under their [folders](#folders). Press `1` to `9` to switch.
 
+### AI news, once a day
+
+**AI news**, next to *Live* at the top, opens the day's five most useful new things for building with Claude, agents and dev tools: what changed, how to use it, and a link to its source.
+Claude picks them from the web once a day, on the account you choose. It is off until you turn it on in that panel, since it uses a little of that account's usage.
+The run gets web search only: no files, no shell, no MCP servers, no hooks. A dot on the button means a newer day's picks you haven't opened.
+
 ### Close cleanly
 
 <table>

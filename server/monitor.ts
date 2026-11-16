@@ -25,6 +25,7 @@ import { findStoryId, shortcutReady, story as storyFor } from "./shortcut.ts";
 import { defaultEffort, latestUsages, readPermission, readTap, statusLineState } from "./statusline.ts";
 import { maybeSummarize, storedSummary, ticketName } from "./summaries.ts";
 import { sortKey, usedAt } from "./order.ts";
+import { newsState } from "./news.ts";
 import { updateState } from "./update.ts";
 import { pickName, savedName, tabName } from "./names.ts";
 import { modelName, readTranscript, type TranscriptState } from "./transcript.ts";
@@ -303,6 +304,7 @@ export class Monitor {
       },
       settings: publicSettings(),
       update: updateState(),
+      news: newsState(),
     };
     this.snapshot = snapshot;
     const json = JSON.stringify({ ...snapshot, at: 0 });

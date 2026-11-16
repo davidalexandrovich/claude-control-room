@@ -173,6 +173,15 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         return send(res, 200, { ok: false, message: "In the app, this pulls the new commits, builds Control Room again and restarts it." });
       case "/api/sessions/new":
         return send(res, 200, { ok: false, message: "In the app, this starts Claude Code in the folder you pick, with a console here." });
+      case "/api/news/refresh":
+        // A short pretend run: the sample picks stay.
+        snap = { ...snap, news: { ...snap.news, running: true } };
+        publish();
+        setTimeout(() => {
+          snap = { ...snap, news: { ...snap.news, running: false, issue: snap.news.issue && { ...snap.news.issue, at: Date.now() } } };
+          publish();
+        }, 3000);
+        return send(res, 200, { ok: true, message: "Reading today's AI news. It takes a few minutes." });
       case "/api/folders/new": {
         const name = cleanFolder((await body<{ name?: unknown }>(req)).name);
         if (!name) return send(res, 200, { ok: false, message: "Type a folder name first." });
@@ -216,10 +225,11 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/settings": {
         const b = await body<Partial<Settings> & { savePrompt?: { id?: unknown; title?: unknown; text?: unknown; model?: unknown; effort?: unknown; mode?: unknown }; removePrompt?: unknown; addAgent?: { label?: unknown; command?: unknown }; removeAgent?: unknown; accountFolder?: { account?: unknown; folder?: unknown } }>(req);
         const patch: Partial<Settings> = {};
-        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
+        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel", "news"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;
+        if (typeof b.newsAccount === "string") patch.newsAccount = b.newsAccount;
         if (b.layout === "fit" || b.layout === "comfortable" || b.layout === "focus") patch.layout = b.layout;
         if (isIdeId(b.ide)) patch.ide = b.ide;
         if (typeof b.terminalFolder === "string" && b.terminalFolder.trim()) patch.terminalFolder = b.terminalFolder.trim();

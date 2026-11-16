@@ -5,7 +5,7 @@ import type { ActionResult, SavedPrompt, Session, Snapshot, StatusKind } from ".
 import { CARDS } from "./lib/cards.ts";
 
 export type Filter = "all" | "attention" | "working" | "idle" | "inactive";
-export type Panel = "settings" | "worktrees" | "new" | "keys" | "jump" | null;
+export type Panel = "settings" | "worktrees" | "new" | "keys" | "jump" | "news" | null;
 
 export interface Toast {
   id: number;
@@ -40,6 +40,7 @@ export interface State {
   folderMenu: { name: string; x: number; y: number } | null; // a folder's right-click menu, where it opened
   newFolderAt: { x: number; y: number } | null; // the side list's right-click menu, which makes a folder, where it opened
   renamingFolder: string | null; // the folder whose name is being edited, in its header
+  newsSeen: string; // the date of the AI news last opened, so the button shows a dot for a newer day's
 }
 
 /** How a session's console shows: in its details, folded to its bar, or filling the window. */
@@ -84,6 +85,7 @@ let state: State = {
   folderMenu: null,
   newFolderAt: null,
   renamingFolder: null,
+  newsSeen: stored("cr.newsSeen", ""),
   // The wall shows the cards as chips only. The old one-switch fold carries over as every card folded.
   ovHidden: VIEW.wallOnly ? [...CARDS] : stored<string[]>("cr.ovHidden", stored("cr.overviewCollapsed", false) ? [...CARDS] : []),
   ovBefore: VIEW.wallOnly ? null : stored<string[] | null>("cr.ovBefore", null),
