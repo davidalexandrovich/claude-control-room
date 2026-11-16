@@ -396,6 +396,8 @@ function applyUser(state: TranscriptState, e: Entry): void {
   const said = userText(e);
   if (said?.startsWith("! ")) noteBranchWork(state, said.slice(2), e.gitBranch, e.cwd);
   if (said) {
+    // A session opened before its first prompt has a transcript already: that prompt comes in a later read.
+    if (!state.firstPrompt && !said.startsWith("/") && isYours(e)) state.firstPrompt = said;
     state.pending = [];
     state.chat.push({ role: "user", text: said, at: e.timestamp ?? null });
     const at = typeof e.timestamp === "string" ? Date.parse(e.timestamp) : NaN;

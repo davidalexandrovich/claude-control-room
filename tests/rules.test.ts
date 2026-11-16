@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -119,6 +119,21 @@ describe("transcript", () => {
     expect(s?.recentFolders).toEqual(["/code/shield-27336"]); // a subagent's cd is its own
     expect(s?.workedBranches).toEqual(["27001_mine"]);
     expect(s?.artifacts).toEqual([{ url: "https://claude.ai/artifact/Early1", title: "Early page" }]);
+  });
+
+  it("finds the first prompt of a session that was open before you typed it", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "cr-tx-")), "s.jsonl");
+    writeFileSync(file, line({ type: "system", subtype: "local_command", content: "<local-command-stdout>Set effort level to high</local-command-stdout>" }) + "\n");
+    expect((await readTranscript(file))?.firstPrompt).toBeNull();
+    appendFileSync(
+      file,
+      [
+        line({ type: "user", message: { content: "<command-name>/model</command-name><command-args>opus</command-args>" } }),
+        line({ type: "user", message: { content: "please check https://app.shortcut.com/sojo/story/27918/x" } }),
+        line({ type: "user", message: { content: "and the next one" } }),
+      ].join("\n") + "\n",
+    );
+    expect((await readTranscript(file))?.firstPrompt).toBe("please check https://app.shortcut.com/sojo/story/27918/x");
   });
 
   it("tracks titles, PR links, effort, model and unanswered tool calls", () => {
