@@ -25,7 +25,7 @@ export const KEYS = {
   pr: { keys: ["P"], label: "Open its PR" },
   close: { keys: ["X"], label: "Close it…" },
   back: { keys: ["Esc"], label: "Close a menu, a panel, the details or a full console" },
-  ide: { keys: ["O"], label: "Open its folder in your IDE" },
+  ide: { keys: ["⌘O"], label: "Open its folder in your IDE" },
   popout: { keys: ["⇧F4"], label: "Pop it out to its own window" },
   remote: { keys: ["C"], label: "Continue it on your phone" },
   finder: { keys: ["⌥⌘R"], label: "Show its folder in Finder" },
@@ -54,7 +54,7 @@ export type SessionKey =
   | { id: "open" | "details" | "rename" | "approve" | "reject" | "pr" | "close" | "ide" | "popout" | "remote" | "finder" | "moveFront" | "moveEnd" | "copyResume" | "copyId" }
   | { id: "answer"; n: number };
 
-type SessionCommand = { id: "rename" | "popout" | "finder" | "copyResume" | "copyId" };
+type SessionCommand = { id: "rename" | "popout" | "finder" | "copyResume" | "copyId" | "ide" };
 
 export type Command =
   | { id: "newSession" | "newTerminal" | "settings" | "help" | "jump" | "next" | "prev" | "leave" }
@@ -84,6 +84,8 @@ export function commandOf(e: KeyboardEvent): Command | null {
   if (e.shiftKey) return e.code === "KeyC" ? { id: "copyResume" } : null;
   // R for Rename, with one hand and no Fn. By the key's place, so a Hebrew layout gets it too.
   if (e.code === "KeyR") return { id: "rename" };
+  // O for Open, with ⌘ so a stray O doesn't open the IDE.
+  if (e.code === "KeyO") return { id: "ide" };
   // Up and down the list, as ⌘ and an arrow go to the top or bottom of one elsewhere on a Mac.
   if (e.key === "ArrowDown") return { id: "next" };
   if (e.key === "ArrowUp") return { id: "prev" };
@@ -94,7 +96,7 @@ export function commandOf(e: KeyboardEvent): Command | null {
   return key === "n" ? { id: "newSession" } : key === "t" ? { id: "newTerminal" } : key === "," ? { id: "settings" } : key === "/" ? { id: "help" } : null;
 }
 
-const SESSION_COMMANDS: readonly string[] = ["rename", "popout", "finder", "copyResume", "copyId"];
+const SESSION_COMMANDS: readonly string[] = ["rename", "popout", "finder", "copyResume", "copyId", "ide"];
 
 /** A command that acts on one session. */
 export function isSessionCommand(c: Command): c is SessionCommand {
@@ -116,4 +118,4 @@ export function sessionKeyOf(e: KeyboardEvent, inMenu = false): SessionKey | nul
   return id ? { id } : null;
 }
 
-const LETTERS: Record<string, Exclude<SessionKey, { id: "answer" }>["id"]> = { a: "approve", r: "reject", p: "pr", x: "close", o: "ide", c: "remote" };
+const LETTERS: Record<string, Exclude<SessionKey, { id: "answer" }>["id"]> = { a: "approve", r: "reject", p: "pr", x: "close", c: "remote" };
