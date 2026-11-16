@@ -409,7 +409,7 @@ In a session's right-click menu, the keys act on that session, and `1` – `4` p
 | `↵` | Open the selected session: its console, or its IDE |
 | `⇧Esc` | Leave the console, so the single keys work again |
 | `Space` | Show or hide its details |
-| `⇧F6` or `F2` | Rename it |
+| `⌘R`, `F2` or `⇧F6` | Rename it |
 | `A` / `R` | Approve or reject |
 | `P` | Open its pull request |
 | `X` | Close the session |

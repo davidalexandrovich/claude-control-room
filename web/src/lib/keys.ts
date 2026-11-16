@@ -18,7 +18,7 @@ export const KEYS = {
   open: { keys: ["↵"], label: "Open it: type in its console, or go to its terminal" },
   leave: { keys: ["⇧Esc"], label: "Leave the console, so these keys work again" },
   details: { keys: ["Space"], label: "Show or hide its details" },
-  rename: { keys: ["⇧F6", "F2"], label: "Rename it" },
+  rename: { keys: ["⌘R", "F2", "⇧F6"], label: "Rename it" },
   approve: { keys: ["A"], label: "Approve what it asks" },
   reject: { keys: ["R"], label: "Reject what it asks" },
   answer: { keys: ["1–4"], label: "Pick that answer, in its menu" },
@@ -82,6 +82,8 @@ export function commandOf(e: KeyboardEvent): Command | null {
     return null;
   }
   if (e.shiftKey) return e.code === "KeyC" ? { id: "copyResume" } : null;
+  // R for Rename, with one hand and no Fn. By the key's place, so a Hebrew layout gets it too.
+  if (e.code === "KeyR") return { id: "rename" };
   // Up and down the list, as ⌘ and an arrow go to the top or bottom of one elsewhere on a Mac.
   if (e.key === "ArrowDown") return { id: "next" };
   if (e.key === "ArrowUp") return { id: "prev" };
