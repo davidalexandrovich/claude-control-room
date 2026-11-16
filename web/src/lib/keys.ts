@@ -24,7 +24,8 @@ export const KEYS = {
   answer: { keys: ["1–4"], label: "Pick that answer, in its menu" },
   pr: { keys: ["P"], label: "Open its PR" },
   close: { keys: ["X"], label: "Close it…" },
-  back: { keys: ["Esc"], label: "Close a menu, a panel, the details or a full console" },
+  back: { keys: ["Esc"], label: "Close a menu, a panel, the details or a full console, or clear the marks" },
+  mark: { keys: ["⌘-click"], label: "Mark it, to close several at once. A click on its number box does too" },
   ide: { keys: ["⌘O"], label: "Open its folder in your IDE" },
   popout: { keys: ["⇧F4"], label: "Pop it out to its own window" },
   remote: { keys: ["C"], label: "Continue it on your phone" },
@@ -40,7 +41,7 @@ export type KeyId = keyof typeof KEYS;
 export const KEY_GROUPS: { title: string; ids: KeyId[] }[] = [
   { title: "Start", ids: ["newSession", "newTerminal", "settings", "help", "layout"] },
   { title: "Move between sessions", ids: ["jump", "next", "prev", "below", "above", "ends", "pick"] },
-  { title: "The selected session", ids: ["open", "leave", "details", "rename", "approve", "reject", "answer", "pr", "close", "back"] },
+  { title: "The selected session", ids: ["open", "leave", "details", "rename", "approve", "reject", "answer", "pr", "close", "mark", "back"] },
   { title: "More for it", ids: ["ide", "popout", "remote", "finder", "moveFront", "moveEnd", "copyResume", "copyId"] },
 ];
 

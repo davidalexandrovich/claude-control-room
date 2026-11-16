@@ -21,9 +21,10 @@ import { type MouseEvent, useRef, useState } from "react";
 import type { PullRequest, Session } from "../../../shared/types.ts";
 import { duration } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
-import { act, api, openMenu, openSession, setState, useOpenName, useStore } from "../store.ts";
+import { act, api, openMenu, openSession, setState, toggleMark, useOpenName, useStore } from "../store.ts";
 import { withKey } from "../lib/keys.ts";
 import { FolderChip } from "./Folders.tsx";
+import { MarkKey } from "./Marks.tsx";
 import { IconButton, Ring, StatusOrb, useNow } from "./Primitives.tsx";
 import { TuneChips } from "./Tuning.tsx";
 
@@ -321,6 +322,7 @@ export function Monitor({ s, index, selected, first }: { s: Session; index: numb
   const renaming = useStore((st) => st.renaming === s.pid && st.drawer !== s.pid);
   const openIn = useOpenName(s);
   const menuOn = useStore((st) => st.menu?.pid === s.pid);
+  const marked = useStore((st) => st.marked.includes(s.pid));
   return (
     <motion.article
       layout
@@ -328,15 +330,15 @@ export function Monitor({ s, index, selected, first }: { s: Session; index: numb
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.8 }}
-      className={`monitor st-${a.kind} ${selected ? "is-selected" : ""} ${a.askedYou ? "asked-you" : ""} ${menuOn ? "has-menu" : ""}`}
-      onClick={() => setState({ drawer: s.pid, selected: s.pid })}
+      className={`monitor st-${a.kind} ${selected ? "is-selected" : ""} ${a.askedYou ? "asked-you" : ""} ${menuOn ? "has-menu" : ""} ${marked ? "is-marked" : ""}`}
+      onClick={(e) => (e.metaKey ? toggleMark(s.pid) : setState({ drawer: s.pid, selected: s.pid }))}
       onContextMenu={(e) => openMenu(e, s.pid)}
       data-pid={s.pid}
       draggable
     >
       <div className="mon-screen" aria-hidden />
       <header className="mon-head">
-        <span className="mon-key" data-tip={index < 9 ? `Press ${index + 1} or ⌘${index + 1} to select` : undefined}>{index + 1}</span>
+        <MarkKey s={s} label={String(index + 1)} tip={index < 9 ? `Press ${index + 1} or ⌘${index + 1} to select` : undefined} />
         {renaming ? <NameEditor s={s} className="mon-title" onDone={() => setState({ renaming: null })} /> : <h3 className="mon-title">{s.name}</h3>}
         <div className="mon-actions">
           <RenameButton s={s} onClick={() => setState({ renaming: s.pid })} />

@@ -22,6 +22,7 @@ import {
 } from "../store.ts";
 import { Monitor } from "./Monitor.tsx";
 import { FocusView } from "./FocusView.tsx";
+import { MarkBar, useMarks } from "./Marks.tsx";
 import { TerminalTile } from "./TerminalTile.tsx";
 
 const GAP = 14;
@@ -109,14 +110,19 @@ export function WallToolbar({ sessions, layout }: { sessions: Session[]; layout:
   // The counts are of the account on show.
   const count = (f: Filter) => sessions.filter((s) => matchesAccount(s, account) && matchesFilter(s, f)).length;
   const setLayout = (l: Settings["layout"]) => void api("/api/settings", { layout: l });
+  const marks = useMarks();
   return (
     <div className="wall-bar">
-      <div className="wall-title">
-        <h2>Sessions</h2>
-        <span className="wall-sub" data-tip="A session moves to the front when you send it a message or use it here. Drag a card to put it anywhere.">
-          last used first · drag to move
-        </span>
-      </div>
+      {marks.length > 0 ? (
+        <MarkBar count={marks.length} />
+      ) : (
+        <div className="wall-title">
+          <h2>Sessions</h2>
+          <span className="wall-sub" data-tip="A session moves to the front when you send it a message or use it here. Drag a card to put it anywhere.">
+            last used first · drag to move
+          </span>
+        </div>
+      )}
       <div className="seg" role="tablist" aria-label="Filter sessions">
         {FILTERS.map((f) => {
           const n = count(f.id);

@@ -271,6 +271,9 @@ The **×** on a tile asks two things:
 - ☑ **Close the session and release its claims.** On by default.
 - ☐ **Delete the worktree.** Off by default. Next to it, you get advice: *Safe to delete*, *Probably safe*, *Keep it for now*, or *In use*. To delete work that is not saved, you must tick one more box.
 
+To close several at once, click each one's number box, or `⌘`-click it. Then press **Close** in the bar above the sessions.
+They close one by one, each with its claims released. Their worktrees stay. `Esc` clears the marks.
+
 **Worktree cleanup** (This Mac → Clean up) checks every worktree of a repo for uncommitted changes, unpushed commits, open pull requests and live sessions.
 It deletes folders only. Your branches stay, on GitHub and on your Mac.
 
@@ -416,6 +419,7 @@ In a session's right-click menu, the keys act on that session, and `1` – `4` p
 | `A` / `R` | Approve or reject |
 | `P` | Open its pull request |
 | `X` | Close the session |
+| `⌘`-click | Mark it, to close several at once |
 | `⌘O` | Open its folder in your IDE |
 | `⇧F4` | Pop it out to its own window |
 | `C` | Continue it on your phone |
@@ -423,7 +427,7 @@ In a session's right-click menu, the keys act on that session, and `1` – `4` p
 | `⇧Home` / `⇧End` | Move it to the front or the end |
 | `⌘⇧C` / `⌥⌘⇧C` | Copy its resume command or its session ID |
 | `F` | Switch between Focus and Fit |
-| `Esc` | Close panels |
+| `Esc` | Close panels, or clear the marks |
 
 Keys typed right after the window gets focus are ignored. So typing meant for another app cannot approve anything.
 

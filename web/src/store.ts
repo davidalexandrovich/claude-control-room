@@ -19,6 +19,8 @@ export interface State {
   selected: number | null; // pid with keyboard focus
   drawer: number | null; // pid shown in the detail drawer
   closing: number | null; // pid in the close dialog
+  marked: number[]; // pids ticked in their number box, to close together
+  closingMarked: boolean; // the dialog that closes the marked sessions
   panel: Panel;
   filter: Filter;
   accountFilter: string; // whose sessions show: "" every account's, "default" the usual one's, else another's folder
@@ -73,6 +75,8 @@ let state: State = {
   selected: null,
   drawer: null,
   closing: null,
+  marked: [],
+  closingMarked: false,
   panel: null,
   filter: stored<Filter>("cr.filter", "all"),
   accountFilter: stored("cr.accountFilter", ""),
@@ -114,6 +118,11 @@ export function useStore<T>(select: (s: State) => T): T {
     },
     () => select(state),
   );
+}
+
+/** Ticks or unticks a session, to close it with the others ticked. */
+export function toggleMark(pid: number): void {
+  setState((st) => ({ marked: st.marked.includes(pid) ? st.marked.filter((p) => p !== pid) : [...st.marked, pid] }));
 }
 
 /** Where "Open in …" takes this session, by name: "PyCharm", "VS Code" or "Terminal". The server decides the same way. */
