@@ -872,6 +872,8 @@ describe("shortcuts", () => {
     expect(press("Tab", { ctrl: true })).toEqual({ id: "next" });
     expect(press("Tab", { ctrl: true, shift: true })).toEqual({ id: "prev" });
     expect(press("F6", { shift: true })).toEqual({ id: "rename" });
+    expect(press("r", { meta: true, code: "KeyR" })).toEqual({ id: "rename" });
+    expect(press("ר", { meta: true, code: "KeyR" })).toEqual({ id: "rename" });
     expect(press("Escape", { shift: true })).toEqual({ id: "leave" });
     expect(press("F4", { shift: true })).toEqual({ id: "popout" });
     // ⌥ changes the letter a key types, so these go by the key itself.
