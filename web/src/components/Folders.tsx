@@ -1,6 +1,6 @@
-// Folders you sort sessions into: a header over each one's rows in the side list, its right-click menu, and the
-// Folder row of a session's menu.
-import { ArrowDown, ArrowUp, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+// Folders you sort sessions into: a header over each one's rows in the side list, a chip on its first card on the wall,
+// its right-click menu, and the Folder row of a session's menu.
+import { ArrowDown, ArrowUp, ChevronRight, Folder, Pencil, Plus, Trash2 } from "lucide-react";
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "../../../shared/types.ts";
@@ -46,7 +46,14 @@ function FolderInput(props: { initial: string; className: string; placeholder?: 
   );
 }
 
-/** A folder's header in the side list: a click shuts or opens it. Shut, it still shows when one of its sessions needs you. */
+/** Opens a folder's right-click menu. */
+function openFolderMenu(e: React.MouseEvent, name: string): void {
+  e.preventDefault();
+  e.stopPropagation();
+  setState({ folderMenu: { name, x: e.clientX, y: e.clientY } });
+}
+
+/** A folder's header in the side list: a click shuts or opens it, a drag moves the folder up or down (folderDrag.ts). Shut, it still shows when one of its sessions needs you. */
 export function FolderHead({ name, sessions }: { name: string; sessions: Session[] }) {
   const folded = useStore((st) => st.folded.includes(name));
   const renaming = useStore((st) => st.renamingFolder === name);
@@ -70,11 +77,9 @@ export function FolderHead({ name, sessions }: { name: string; sessions: Session
       className={`focus-folder ${menuOn ? "has-menu" : ""}`}
       aria-expanded={!folded}
       onClick={() => toggleFolded(name)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setState({ folderMenu: { name, x: e.clientX, y: e.clientY } });
-      }}
+      onContextMenu={(e) => openFolderMenu(e, name)}
+      draggable
+      data-folder-drag={name}
     >
       <ChevronRight size={13} className={`focus-folder-chev ${folded ? "" : "is-open"}`} />
       <span className="focus-folder-name">{name}</span>
@@ -86,6 +91,24 @@ export function FolderHead({ name, sessions }: { name: string; sessions: Session
       )}
       <span className="focus-folder-count">{sessions.length}</span>
     </button>
+  );
+}
+
+/** On the wall, on the first card of each folder: a drag moves the folder left or right (folderDrag.ts). */
+export function FolderChip({ name }: { name: string }) {
+  const menuOn = useStore((st) => st.folderMenu?.name === name);
+  return (
+    <span
+      className={`chip chip-folder ${menuOn ? "has-menu" : ""}`}
+      draggable
+      data-folder-drag={name}
+      data-tip="Drag left or right to move the folder. Right-click to rename or remove it."
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => openFolderMenu(e, name)}
+    >
+      <Folder size={12} />
+      <span className="chip-text">{name}</span>
+    </span>
   );
 }
 

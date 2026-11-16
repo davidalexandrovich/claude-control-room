@@ -8,7 +8,7 @@ import { api } from "../store.ts";
 type Side = "before" | "after";
 
 /** The card closest to a point: by the distance to its edges, so a gap counts toward the card beside it. */
-function nearest(cards: HTMLElement[], x: number, y: number): HTMLElement | null {
+export function nearest(cards: HTMLElement[], x: number, y: number): HTMLElement | null {
   let best: HTMLElement | null = null;
   let bestD = Infinity;
   for (const c of cards) {
@@ -43,6 +43,8 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y",
     };
 
     const start = (e: DragEvent) => {
+      // A folder's chip on a card moves the folder (folderDrag.ts), not the card.
+      if ((e.target as HTMLElement).closest("[data-folder-drag]")) return;
       const card = (e.target as HTMLElement).closest<HTMLElement>(item);
       if (!card || !el.contains(card) || !e.dataTransfer) return;
       dragged = pidOf(card);

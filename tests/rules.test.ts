@@ -24,6 +24,7 @@ import { cleanPrompts, fillSlots, MAX_PROMPTS, pickPrompt, promptSlots, promptTe
 import { applyLines, describeTool, emptyState, modelName, readTranscript, userText } from "../server/transcript.ts";
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
+import { movedFolder, wallDrop } from "../shared/folders.ts";
 import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { commandOf, KEY_GROUPS, KEYS, sessionKeyOf } from "../web/src/lib/keys.ts";
 import { fitWall, TILE_MIN_H, TILE_MIN_W } from "../web/src/lib/layout.ts";
@@ -987,5 +988,31 @@ describe("agent script", () => {
   it("closes it at once after a clean exit or Ctrl+C", () => {
     expect(run("(exit 0)").stdout).toBe("");
     expect(run("(exit 130)").stdout).toBe("");
+  });
+});
+
+describe("moving a folder", () => {
+  const names = ["A", "B", "C"];
+
+  it("puts it before another folder, or last", () => {
+    expect(movedFolder(names, "C", "A")).toEqual(["C", "A", "B"]);
+    expect(movedFolder(names, "A", "C")).toEqual(["B", "A", "C"]);
+    expect(movedFolder(names, "A", null)).toEqual(["B", "C", "A"]);
+    expect(movedFolder(names, "B", "B")).toEqual(names);
+    expect(movedFolder(names, "B", "Gone")).toEqual(names);
+    expect(movedFolder(names, "Gone", "A")).toEqual(names);
+  });
+
+  it("on the wall, goes before or after the folder of the card it is dropped on, by the half of that folder", () => {
+    const cards = ["A", "A", "A", "B", null, null];
+    expect(wallDrop(cards, 0, true, names)).toEqual({ before: "A", mark: 0, side: "before" });
+    expect(wallDrop(cards, 1, false, names)).toEqual({ before: "A", mark: 0, side: "before" });
+    expect(wallDrop(cards, 1, true, names)).toEqual({ before: "B", mark: 2, side: "after" });
+    expect(wallDrop(cards, 3, false, names)).toEqual({ before: "B", mark: 3, side: "before" });
+    // After B is before C, the next folder, though none of its cards is on show.
+    expect(wallDrop(cards, 3, true, names)).toEqual({ before: "C", mark: 3, side: "after" });
+    expect(wallDrop(["C"], 0, true, names)).toEqual({ before: null, mark: 0, side: "after" });
+    // On a card in no folder: last, with the line after the last folder's last card.
+    expect(wallDrop(cards, 5, false, names)).toEqual({ before: null, mark: 3, side: "after" });
   });
 });

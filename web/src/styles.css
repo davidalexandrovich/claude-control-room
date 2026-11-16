@@ -3333,6 +3333,44 @@ body.is-resizing .drawer {
   bottom: 2px;
 }
 
+/* Dragging a folder: its header in Focus, its chip on the wall. The line shows on a header, a row or a card. */
+.focus-folder[data-dragging],
+.chip-folder[data-dragging] {
+  opacity: 0.35;
+}
+.focus-folder {
+  position: relative;
+}
+.focus-folder[data-drop]::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--idle, #7aa2ff);
+  box-shadow: 0 0 14px rgba(122, 162, 255, 0.8);
+  pointer-events: none;
+}
+.focus-folder[data-drop="before"]::after {
+  top: -4px;
+}
+.focus-list > .focus-folder:first-child[data-drop="before"]::after {
+  top: 0;
+}
+.focus-folder[data-drop="after"]::after {
+  bottom: -3px;
+}
+.chip-folder {
+  color: var(--text);
+  cursor: grab;
+}
+.chip-folder:hover,
+.chip-folder.has-menu {
+  background: rgba(255, 255, 255, 0.09);
+}
+
 /* The console's edges and corners: drag them like a window's */
 .console-frame {
   position: relative;

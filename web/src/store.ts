@@ -157,9 +157,13 @@ export function toggleFolded(name: string): void {
 }
 
 /** Renames, removes or moves a folder. A folder shut in the list stays shut under its new name. */
-export async function editFolder(name: string, change: { rename: string } | { remove: true } | { shift: -1 | 1 }): Promise<ActionResult> {
-  const r = await act(`folder:${name}`, "/api/folders", { name, ...change }, "shift" in change);
-  if (r.ok && state.folded.includes(name) && !("shift" in change)) {
+export async function editFolder(
+  name: string,
+  change: { rename: string } | { remove: true } | { shift: -1 | 1 } | { before: string | null },
+): Promise<ActionResult> {
+  const moving = "shift" in change || "before" in change;
+  const r = await act(`folder:${name}`, "/api/folders", { name, ...change }, moving);
+  if (r.ok && state.folded.includes(name) && !moving) {
     const folded = state.folded.filter((n) => n !== name);
     if ("rename" in change && !folded.includes(change.rename.trim())) folded.push(change.rename.trim());
     setState({ folded });

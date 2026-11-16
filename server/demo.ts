@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import { pathToFileURL } from "node:url";
 import { isEffort, isMode, modeName, MODELS } from "../shared/claude.ts";
 import { keyBetween } from "./order.ts";
-import { byFolder } from "../shared/folders.ts";
+import { byFolder, movedFolder } from "../shared/folders.ts";
 import { cleanFolder } from "./folders.ts";
 import { ideName, isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { withPrompt } from "../shared/prompts.ts";
@@ -174,7 +174,7 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
       case "/api/sessions/new":
         return send(res, 200, { ok: false, message: "In the app, this starts Claude Code in the folder you pick, with a console here." });
       case "/api/folders": {
-        const b = await body<{ name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown }>(req);
+        const b = await body<{ name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown; before?: unknown }>(req);
         const name = typeof b.name === "string" && snap.folders.includes(b.name) ? b.name : null;
         if (!name) return send(res, 200, { ok: false, message: "That folder is gone." });
         let folders = snap.folders;
@@ -192,6 +192,8 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
             folders = [...folders];
             [folders[at], folders[next]] = [folders[next], folders[at]];
           }
+        } else if (b.before === null || typeof b.before === "string") {
+          folders = movedFolder(folders, name, b.before);
         }
         const moved = snap.sessions.map((x) => (x.folder === name ? { ...x, folder: to } : x));
         snap = { ...snap, folders, sessions: moved.sort(byFolder(folders)) };
