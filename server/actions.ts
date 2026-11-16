@@ -17,7 +17,7 @@ import { findTranscript, noteMode, readSessionFiles, type SessionFile } from "./
 import { cleanFolder, folderNames, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
 import { cleanName, saveName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
-import { CLEAR_DRAFT, REMOTE_COMMAND, remoteRefusal } from "./remote.ts";
+import { CLEAR_DRAFT, remoteCommand, remoteRefusal, remoteTitle } from "./remote.ts";
 import { place } from "./order.ts";
 import { keepDefaults, readTap, type Tap } from "./statusline.ts";
 import { closeTerminal, focusTerminal, renameTerminal, sendText } from "./vscode.ts";
@@ -113,7 +113,8 @@ export async function startRemoteControl(monitor: Monitor, pid: number): Promise
   if (before?.bridgeSessionId) return { ok: true, message: "It is already on your phone." };
   const refused = remoteRefusal(before);
   if (refused) return { ok: false, message: refused };
-  for (const [text, key] of [...CLEAR_DRAFT, [REMOTE_COMMAND, null] as const]) {
+  const title = remoteTitle(s.name, s.nameSource);
+  for (const [text, key] of [...CLEAR_DRAFT, [remoteCommand(title), null] as const]) {
     const r = await sendKeys(s, text, key);
     if (!r.ok) return r;
   }
@@ -126,6 +127,8 @@ export async function startRemoteControl(monitor: Monitor, pid: number): Promise
   for (let i = 0; i < 24; i++) {
     await sleep(250);
     if ((await freshStatus(pid))?.bridgeSessionId) {
+      // claude.ai keeps the name it got; kept here too, the tile can't move on to a newer title or summary.
+      if (title && s.nameSource !== "tab" && s.nameSource !== "saved") await saveName(s.sessionId, title).catch(() => {});
       await monitor.tick();
       return { ok: true, message: "On your phone now: open the Claude app and tap Code." };
     }

@@ -181,6 +181,7 @@ For a session in another terminal, like PyCharm's, click **Move here** first.
 
 Leaving your desk? Click **rc** on a session's tile, or **Remote control** in its details.
 Control Room types Claude Code's `/remote-control` into that session, the same command you would type yourself.
+It adds the session's name, so the Claude app shows the same name as its tile. The tile then keeps that name.
 A second later, the session is in the Claude app on your phone, under **Code**, and at [claude.ai/code](https://claude.ai/code).
 It keeps running on your Mac, so you can reply from your phone or from the terminal.
 
@@ -449,7 +450,7 @@ Each call costs about 0.03¢, and it runs only when a session has moved on.
 
 **rc** types into the session's terminal, the same way Approve does: through `tmux`, or through the VS Code helper.
 First it clears anything you typed there but did not send. Press `Ctrl+Y` in that session to get it back.
-Then it types `/remote-control` and presses Enter.
+Then it types `/remote-control` with the tile's name and presses Enter. A new session that has no name yet goes without one.
 
 A tile's name comes from the first of these that it has:
 the name you gave its VS Code tab, the name you gave it in Control Room, the name from `/rename`, the Shortcut story, Claude Code's own title,
