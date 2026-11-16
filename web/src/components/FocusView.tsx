@@ -10,15 +10,14 @@ import { FolderHead } from "./Folders.tsx";
 import { StatusOrb, useNow } from "./Primitives.tsx";
 import { SessionDetail } from "./SessionDetail.tsx";
 
-/** The rows under each folder, in the list's order, which keeps each folder together; those in none come last. */
-function groups(sessions: Session[]): { folder: string | null; rows: { s: Session; i: number }[] }[] {
-  const out: { folder: string | null; rows: { s: Session; i: number }[] }[] = [];
-  sessions.forEach((s, i) => {
-    const last = out.at(-1);
-    if (last && last.folder === s.folder) last.rows.push({ s, i });
-    else out.push({ folder: s.folder, rows: [{ s, i }] });
-  });
-  return out;
+/**
+ * The rows under each folder, in the folders' order, as the list keeps them; those in none come last. A folder no
+ * session is in yet shows too, to drag sessions into; one whose sessions this view leaves out does not.
+ */
+function groups(sessions: Session[], folders: string[], all: Session[]): { folder: string | null; rows: { s: Session; i: number }[] }[] {
+  const out = [...folders, null].map((folder) => ({ folder, rows: [] as { s: Session; i: number }[] }));
+  sessions.forEach((s, i) => (out.find((g) => g.folder === s.folder) ?? out.at(-1)!).rows.push({ s, i }));
+  return out.filter((g) => g.rows.length > 0 || (g.folder !== null && !all.some((s) => s.folder === g.folder)));
 }
 
 /** One session large on the left; every other session as a slim row on the right, under its folder. */
@@ -27,6 +26,7 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
   const all = useStore((s) => s.snapshot?.sessions) ?? sessions;
   const menuPid = useStore((s) => s.menu?.pid);
   const folded = useStore((s) => s.folded);
+  const folders = useStore((s) => s.snapshot?.folders) ?? [];
   const now = useNow();
   // The pick stays on show even when the filter no longer lists it.
   const current = all.find((s) => s.pid === selected) ?? sessions.find(needsYou) ?? sessions[0] ?? null;
@@ -45,13 +45,23 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
     },
     [dragRef, folderRef],
   );
-  const list = groups(sessions);
+  const list = groups(sessions, folders, all);
   return (
     <div className="focus-layout">
       <div className="focus-main">
         {current ? <SessionDetail s={current} variant="focus" /> : <div className="wall-empty"><h3>No session to show</h3></div>}
       </div>
-      <nav className="focus-list" aria-label="Sessions" ref={ref}>
+      <nav
+        className="focus-list"
+        aria-label="Sessions"
+        ref={ref}
+        onContextMenu={(e) => {
+          // On the room around the rows: a menu to make a folder.
+          if ((e.target as HTMLElement).closest(".focus-row, .focus-folder")) return;
+          e.preventDefault();
+          setState({ newFolderAt: { x: e.clientX, y: e.clientY } });
+        }}
+      >
         {list.map((g) => (
           <Fragment key={g.folder ?? ""}>
             {g.folder !== null ? <FolderHead name={g.folder} sessions={g.rows.map((r) => r.s)} /> : list.length > 1 && <div className="focus-rule" role="separator" />}

@@ -3341,7 +3341,7 @@ body.is-resizing .drawer {
 .focus-folder {
   position: relative;
 }
-.focus-folder[data-drop]::after {
+.focus-folder:is([data-drop="before"], [data-drop="after"])::after {
   content: "";
   position: absolute;
   z-index: 5;
@@ -3361,6 +3361,16 @@ body.is-resizing .drawer {
 }
 .focus-folder[data-drop="after"]::after {
   bottom: -3px;
+}
+/* A session's row over a folder's header: it goes into that folder. */
+.focus-folder[data-drop="into"] {
+  background: rgba(122, 162, 255, 0.14);
+  box-shadow: inset 0 0 0 1px var(--idle, #7aa2ff);
+  color: var(--text);
+}
+.new-folder-input.name-input {
+  width: 100%;
+  margin: 0;
 }
 .chip-folder {
   color: var(--text);

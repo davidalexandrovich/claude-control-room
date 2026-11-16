@@ -173,6 +173,14 @@ export async function startDemo(opts: { port?: number; sessions?: number } = {})
         return send(res, 200, { ok: false, message: "In the app, this pulls the new commits, builds Control Room again and restarts it." });
       case "/api/sessions/new":
         return send(res, 200, { ok: false, message: "In the app, this starts Claude Code in the folder you pick, with a console here." });
+      case "/api/folders/new": {
+        const name = cleanFolder((await body<{ name?: unknown }>(req)).name);
+        if (!name) return send(res, 200, { ok: false, message: "Type a folder name first." });
+        if (snap.folders.includes(name)) return send(res, 200, { ok: false, message: `There is a “${name}” already.` });
+        snap = { ...snap, folders: [...snap.folders, name] };
+        publish();
+        return send(res, 200, { ok: true, message: `Made “${name}”` });
+      }
       case "/api/folders": {
         const b = await body<{ name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown; before?: unknown }>(req);
         const name = typeof b.name === "string" && snap.folders.includes(b.name) ? b.name : null;

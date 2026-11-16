@@ -1,10 +1,10 @@
 // Folders you sort sessions into: a header over each one's rows in the side list, a chip on its first card on the wall,
-// its right-click menu, and the Folder row of a session's menu.
+// its right-click menu, the side list's menu that makes one, and the Folder row of a session's menu.
 import { ArrowDown, ArrowUp, ChevronRight, Folder, Pencil, Plus, Trash2 } from "lucide-react";
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "../../../shared/types.ts";
-import { editFolder, needsYou, setFolder, setState, toggleFolded, useStore } from "../store.ts";
+import { editFolder, needsYou, newFolder, setFolder, setState, toggleFolded, useStore } from "../store.ts";
 import { StatusOrb } from "./Primitives.tsx";
 
 const MAX_FOLDER = 40;
@@ -120,18 +120,17 @@ export function FolderMenu() {
   return <Menu key={`${at.name}:${at.x}:${at.y}`} name={at.name} x={at.x} y={at.y} folders={folders} />;
 }
 
-function Menu({ name, x, y, folders }: { name: string; x: number; y: number; folders: string[] }) {
+/** A menu at the pointer, kept on screen. Esc, a click away, leaving the window or resizing it closes it. */
+function usePopup(x: number, y: number, close: () => void) {
   const box = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ left: x, top: y, visibility: "hidden" });
-  const close = () => setState({ folderMenu: null });
-  const run = (fn: () => unknown) => () => {
-    close();
-    void fn();
-  };
   useLayoutEffect(() => {
     const el = box.current!;
-    setStyle({ left: Math.max(8, Math.min(x, innerWidth - el.offsetWidth - 8)), top: Math.max(8, Math.min(y, innerHeight - el.offsetHeight - 8)) });
-    el.focus();
+    const at = { left: Math.max(8, Math.min(x, innerWidth - el.offsetWidth - 8)), top: Math.max(8, Math.min(y, innerHeight - el.offsetHeight - 8)) };
+    // Shown before the keyboard moves in: a hidden menu can't take it. Its name box takes it, if it has one.
+    Object.assign(el.style, { left: `${at.left}px`, top: `${at.top}px`, visibility: "visible" });
+    setStyle(at);
+    (el.querySelector("input") ?? el).focus();
   }, [x, y]);
   useEffect(() => {
     const away = (e: Event) => !box.current?.contains(e.target as Node) && close();
@@ -151,6 +150,16 @@ function Menu({ name, x, y, folders }: { name: string; x: number; y: number; fol
       window.removeEventListener("resize", close);
     };
   }, []);
+  return { box, style };
+}
+
+function Menu({ name, x, y, folders }: { name: string; x: number; y: number; folders: string[] }) {
+  const close = () => setState({ folderMenu: null });
+  const { box, style } = usePopup(x, y, close);
+  const run = (fn: () => unknown) => () => {
+    close();
+    void fn();
+  };
   const at = folders.indexOf(name);
   const item = (icon: React.ReactNode, label: string, onClick: () => void, opts: { danger?: boolean; disabled?: boolean } = {}) => (
     <button type="button" role="menuitem" className={`ctx-item ${opts.danger ? "is-danger" : ""}`} disabled={opts.disabled} onClick={onClick}>
@@ -171,6 +180,32 @@ function Menu({ name, x, y, folders }: { name: string; x: number; y: number; fol
       <div className="ctx-group">
         {item(<Trash2 size={14} />, "Remove folder", run(() => editFolder(name, { remove: true })), { danger: true })}
         <div className="ctx-note folder-menu-note">Its sessions stay, out of any folder.</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** The side list's right-click menu, on the room below its sessions: a box for a new folder's name. */
+export function NewFolderMenu() {
+  const at = useStore((st) => st.newFolderAt);
+  if (!at) return null;
+  return <NewFolderBox key={`${at.x}:${at.y}`} x={at.x} y={at.y} />;
+}
+
+function NewFolderBox({ x, y }: { x: number; y: number }) {
+  const close = () => setState({ newFolderAt: null });
+  const { box, style } = usePopup(x, y, close);
+  return createPortal(
+    <div ref={box} className="menu ctx-menu folder-menu" role="dialog" aria-label="New folder" tabIndex={-1} style={style} onContextMenu={(e) => e.preventDefault()}>
+      <div className="ctx-head">
+        <div className="ctx-name">
+          <Plus size={13} /> New folder
+        </div>
+      </div>
+      <div className="ctx-group">
+        <FolderInput initial="" className="new-folder-input" placeholder="Folder name" save={async (name) => (await newFolder(name)).ok} done={close} />
+        <div className="ctx-note folder-menu-note">Then drag sessions onto its header.</div>
       </div>
     </div>,
     document.body,

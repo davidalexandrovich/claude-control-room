@@ -66,6 +66,12 @@ export function setFolder(sessionId: string, folder: string | null): Promise<voi
   return save();
 }
 
+/** Makes a folder with no sessions yet, last in the list. */
+export function addFolder(name: string): Promise<void> {
+  addName(load(), name);
+  return save();
+}
+
 /** Renames a folder, with its sessions. Into a folder that already exists, the two become one. */
 export function renameFolder(from: string, to: string): Promise<void> {
   const s = load();
