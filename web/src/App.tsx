@@ -7,6 +7,7 @@ import { CloseMarkedDialog } from "./components/Marks.tsx";
 import { SessionMenu } from "./components/SessionMenu.tsx";
 import { NewSessionDialog } from "./components/NewSessionDialog.tsx";
 import { KeysPanel } from "./components/KeysPanel.tsx";
+import { NewsPanel } from "./components/NewsPanel.tsx";
 import { SessionJump } from "./components/SessionJump.tsx";
 import { Overview } from "./components/Overview.tsx";
 import { SessionDetail } from "./components/SessionDetail.tsx";
@@ -258,6 +259,7 @@ export function App() {
       {panel === "new" && <NewSessionDialog snap={snap} />}
       {panel === "keys" && <KeysPanel />}
       {panel === "jump" && <SessionJump />}
+      {panel === "news" && <NewsPanel snap={snap} />}
       <SessionMenu />
       <FolderMenu />
       <NewFolderMenu />

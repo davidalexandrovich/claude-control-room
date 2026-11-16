@@ -26,6 +26,7 @@ import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts"
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
 import { movedFolder, wallDrop } from "../shared/folders.ts";
 import { closedSummary, liveMarks } from "../shared/marks.ts";
+import { localDate, newsDue, parseNews, sourceOf } from "../shared/news.ts";
 import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { commandOf, KEY_GROUPS, KEYS, sessionKeyOf } from "../web/src/lib/keys.ts";
 import { fitWall, TILE_MIN_H, TILE_MIN_W } from "../web/src/lib/layout.ts";
@@ -1004,6 +1005,43 @@ describe("closing marked sessions", () => {
     expect(closedSummary(3, [])).toBe("Closed 3 sessions");
     expect(closedSummary(3, ["“a”: Claude did not stop."])).toBe("Closed 2 of 3. “a”: Claude did not stop.");
     expect(closedSummary(3, ["“a”: x", "“b”: y"])).toBe("Closed 1 of 3. “a”: x (and 1 more)");
+  });
+});
+
+describe("the daily AI news", () => {
+  const item = (n: number, extra: object = {}) => ({ title: `Pick ${n}`, summary: "What changed. How to use it.", url: `https://example.com/${n}`, tag: "MCP", ...extra });
+  it("reads up to five picks from the JSON in the reply", () => {
+    const reply = `Here you go:\n${JSON.stringify({ items: [1, 2, 3, 4, 5, 6].map((n) => item(n)) })}`;
+    const out = parseNews(reply);
+    expect(out).toHaveLength(5);
+    expect(out?.[0]).toEqual({ title: "Pick 1", summary: "What changed. How to use it.", url: "https://example.com/1", tag: "MCP" });
+  });
+  it("drops picks without a web link, a title or a summary, and repeats", () => {
+    const items = [item(1, { url: "javascript:alert(1)" }), item(2, { url: "file:///etc/passwd" }), item(3, { title: "" }), item(4, { summary: 7 }), item(5), item(5), item(6, { tag: undefined })];
+    expect(parseNews(JSON.stringify({ items }))?.map((x) => [x.url, x.tag])).toEqual([
+      ["https://example.com/5", "MCP"],
+      ["https://example.com/6", ""],
+    ]);
+  });
+  it("leaves out what earlier days had", () => {
+    expect(parseNews(JSON.stringify({ items: [item(1), item(2)] }), ["https://example.com/1"])?.map((x) => x.url)).toEqual(["https://example.com/2"]);
+  });
+  it("gives null for a reply with no picks", () => {
+    expect(parseNews("Sorry, I could not search.")).toBeNull();
+    expect(parseNews('{"items": []}')).toBeNull();
+    expect(parseNews("{not json}")).toBeNull();
+  });
+  it("runs once a day, with a few tries", () => {
+    const today = "2026-11-16";
+    expect(newsDue({ latest: "2026-11-15", tries: { date: "2026-11-15", n: 1 }, running: false }, today)).toBe(true);
+    expect(newsDue({ latest: today, tries: { date: today, n: 1 }, running: false }, today)).toBe(false);
+    expect(newsDue({ latest: null, tries: { date: today, n: 2 }, running: false }, today)).toBe(true);
+    expect(newsDue({ latest: null, tries: { date: today, n: 3 }, running: false }, today)).toBe(false);
+    expect(newsDue({ latest: null, tries: { date: "", n: 0 }, running: true }, today)).toBe(false);
+  });
+  it("names the local day and a link's site", () => {
+    expect(localDate(new Date(2026, 0, 5, 23, 59).getTime())).toBe("2026-01-05");
+    expect(sourceOf("https://www.anthropic.com/news/x")).toBe("anthropic.com");
   });
 });
 

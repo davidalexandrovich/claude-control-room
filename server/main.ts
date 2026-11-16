@@ -45,6 +45,7 @@ import { body, DEV_ORIGINS, DIST, refusal, send, serveStatic } from "./http.ts";
 import { hostedName } from "./hosted.ts";
 import { NAME_PATTERN } from "../shared/hosted.ts";
 import { Monitor } from "./monitor.ts";
+import { checkNews, refreshNews, startNews } from "./news.ts";
 import { noteUsed } from "./order.ts";
 import { APP_DIR, BRIDGE_FILE, TAP_DIR } from "./paths.ts";
 import { readPower, setSleepDisabled, sudoersLine } from "./power.ts";
@@ -90,6 +91,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
   setTimeout(() => void checkForUpdate(), 20_000).unref();
   setInterval(() => void checkForUpdate(), 30 * 60_000).unref();
   const monitor = new Monitor();
+  void startNews(() => void monitor.tick());
   const jobs = new Map<string, ScanJob>();
   const prCache = new Map<string, Awaited<ReturnType<typeof allPrs>>>();
   let port = opts.port ?? Number(process.env.CONTROL_ROOM_PORT ?? 4317);
@@ -250,6 +252,10 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
         return send(res, 200, await newSession(monitor, await body<Parameters<typeof newSession>[1]>(req)));
       case "/api/folders":
         return send(res, 200, await editFolder(monitor, await body<Parameters<typeof editFolder>[1]>(req)));
+      case "/api/news/refresh":
+        // It takes minutes: the answer comes at once, and the picks with a snapshot once they are in.
+        void refreshNews().then((r) => !r.ok && console.warn(r.message));
+        return send(res, 200, { ok: true, message: "Reading today's AI news. It takes a few minutes." });
       case "/api/folders/new":
         return send(res, 200, await newFolder(monitor, (await body<{ name?: unknown }>(req)).name));
       case "/api/terminal":
@@ -277,7 +283,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           }
         >(req);
         const patch: Partial<Settings> = {};
-        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel"] as const) {
+        for (const key of ["notifications", "sounds", "aiSummaries", "includeIdePanel", "news"] as const) {
           if (typeof b[key] === "boolean") patch[key] = b[key];
         }
         if (typeof b.inactiveAfterMinutes === "number" && b.inactiveAfterMinutes >= 5) patch.inactiveAfterMinutes = b.inactiveAfterMinutes;
@@ -326,6 +332,12 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           if (!settings().accounts.some((a) => a.dir === b.renameAccount!.dir)) return send(res, 200, { ok: false, message: "That account is not in Settings any more." });
           patch.accounts = settings().accounts.map((a) => (a.dir === b.renameAccount!.dir ? { ...a, label } : a));
         }
+        if (typeof b.newsAccount === "string") {
+          if (b.newsAccount && !settings().accounts.some((a) => a.dir === b.newsAccount)) {
+            return send(res, 200, { ok: false, message: "That account is not in Settings any more." });
+          }
+          patch.newsAccount = b.newsAccount;
+        }
         if (typeof b.newSessionAccount === "string") {
           if (b.newSessionAccount && !settings().accounts.some((a) => a.dir === b.newSessionAccount)) {
             return send(res, 200, { ok: false, message: "That account is not in Settings any more." });
@@ -358,6 +370,7 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           patch.accounts = settings().accounts.filter((a) => a.dir !== b.removeAccount);
           // New sessions go back to the usual account.
           if (settings().newSessionAccount === b.removeAccount) patch.newSessionAccount = "";
+          if (settings().newsAccount === b.removeAccount) patch.newsAccount = "";
           const { [b.removeAccount]: _, ...folders } = patch.accountFolders ?? settings().accountFolders;
           patch.accountFolders = folders;
         }
@@ -382,6 +395,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
           message = "Agent removed";
         }
         await saveSettings(patch);
+        // Turned on: today's picks start now, not at the next hourly check.
+        if (patch.news) checkNews();
         await monitor.tick();
         return send(res, 200, { ok: true, message });
       }

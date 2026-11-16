@@ -2,6 +2,7 @@
 // but each status goes through the same rules as a live session (deriveActivity and verdictFor).
 import type { ChatLine, Claim, ClosePlan, GitInfo, PullRequest, Session, Snapshot, Story, WorktreeReport } from "../shared/types.ts";
 import { byFolder } from "../shared/folders.ts";
+import { localDate } from "../shared/news.ts";
 import { deriveActivity, type StatusFile } from "./activity.ts";
 import { emptyState, modelName, type ToolUse } from "./transcript.ts";
 import { verdictFor, type WorktreeFacts } from "./worktrees.ts";
@@ -479,6 +480,22 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       },
     ],
     power: { sleepDisabled: true, passwordless: false },
+    // Sample picks, to show the AI news panel: the real ones come from the web each day.
+    news: {
+      running: false,
+      error: null,
+      issue: {
+        date: localDate(now),
+        at: now - 95 * MIN,
+        items: [
+          { tag: "Claude Code", title: "Sample: a new hook event for tool results", summary: "A made-up pick, to show the layout. The real panel lists what changed, then how to use it in practice.", url: "https://example.com/claude-code-hooks" },
+          { tag: "MCP", title: "Sample: an MCP server that reads your CI logs", summary: "Point a session at failing builds without pasting logs. Add it to .mcp.json and ask why the last run failed.", url: "https://example.com/mcp-ci-logs" },
+          { tag: "Agents", title: "Sample: running subagents in parallel on one repo", summary: "Split a refactor across worktrees, one agent each. Merge when each one's tests pass.", url: "https://example.com/parallel-agents" },
+          { tag: "API", title: "Sample: longer prompt caching for tool definitions", summary: "Cache your tools once and reuse them across turns. It cuts cost on long agent loops.", url: "https://example.com/prompt-caching" },
+          { tag: "Codex", title: "Sample: another coding agent adds a plan mode", summary: "It now writes a plan before it edits. Worth comparing with Claude Code's plan mode on the same task.", url: "https://example.com/plan-mode" },
+        ],
+      },
+    },
     update: {
       source: "/Users/you/code/claude-control-room",
       built: "42d4ed4",
@@ -517,6 +534,8 @@ export function demoSnapshot(now: number, count = DEMO_DEFAULT_COUNT): Snapshot 
       defaultAccountLabel: "Work",
       newSessionAccount: "",
       accountFolders: { "": "/Users/you/code" },
+      news: true,
+      newsAccount: PERSONAL.dir,
       agents: [],
       prompts: [
         { id: "review", title: "Review my changes", text: "Review the changes on this branch for bugs, missing tests and anything that breaks existing behavior. List findings by severity.", model: "opus", effort: "high", mode: "auto" },

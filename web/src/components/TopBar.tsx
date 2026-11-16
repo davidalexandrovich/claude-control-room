@@ -5,6 +5,7 @@ import { playChime } from "../lib/alerts.ts";
 import { withKey } from "../lib/keys.ts";
 import { native } from "../lib/native.ts";
 import { act, api, openTerminal, setState, startFolder, useStore, VIEW } from "../store.ts";
+import { NewsButton } from "./NewsPanel.tsx";
 import { IconButton } from "./Primitives.tsx";
 import { allHidden } from "../lib/cards.ts";
 import { toggleAllCards } from "../lib/overview.ts";
@@ -59,6 +60,7 @@ export function TopBar({ snap }: { snap: Snapshot | null }) {
           <span className="live-dot" />
           {connected ? "Live" : "Offline"}
         </span>
+        {snap && !VIEW.wallOnly && VIEW.sessionPid === null && <NewsButton snap={snap} />}
       </div>
       <div className="topbar-tools">
         {cfg && !VIEW.wallOnly && (

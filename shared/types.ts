@@ -238,6 +238,8 @@ export interface Settings {
   accountFolders: Record<string, string>; // where New session and a terminal start for an account: "" for the usual one, else its folder
   prompts: SavedPrompt[]; // your own prompts, to start a session with or paste into one
   agents: CustomAgent[]; // coding agents of your own for New session, besides the built-in ones
+  news: boolean; // pick the day's AI news once a day; off until you turn it on, since it uses an account's usage
+  newsAccount: string; // the folder of the account that runs it: "" for the one in ~/.claude
 }
 
 export interface SavedPrompt {
@@ -262,6 +264,28 @@ export interface Snapshot {
   setup: SetupState;
   settings: Settings;
   update: UpdateState;
+  news: NewsState;
+}
+
+/** One pick of the daily AI news: what is new, and how to use it. */
+export interface NewsItem {
+  title: string;
+  summary: string;
+  url: string; // its primary source, http(s) only
+  tag: string; // a word or two, such as "Claude Code" or "MCP"; may be ""
+}
+
+/** The picks of one day, by the local date they were made on. */
+export interface NewsIssue {
+  date: string; // YYYY-MM-DD, local
+  at: number; // when it was made
+  items: NewsItem[];
+}
+
+export interface NewsState {
+  issue: NewsIssue | null; // the latest
+  running: boolean; // Claude is reading the web for it now
+  error: string | null; // why the last run failed, until one works
 }
 
 /** Updating the app from the git checkout it was built from. */

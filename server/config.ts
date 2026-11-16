@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
   accountFolders: {},
   prompts: [],
   agents: [],
+  news: false,
+  newsAccount: "",
 };
 
 let current: Settings = { ...DEFAULT_SETTINGS };
@@ -36,6 +38,7 @@ export function cleanSettings(raw: Partial<Settings>): Settings {
   s.accounts = cleanAccounts(s.accounts);
   s.defaultAccountLabel = accountLabel(s.defaultAccountLabel) ?? DEFAULT_SETTINGS.defaultAccountLabel;
   if (!s.accounts.some((a) => a.dir === s.newSessionAccount)) s.newSessionAccount = "";
+  if (!s.accounts.some((a) => a.dir === s.newsAccount)) s.newsAccount = "";
   s.accountFolders = cleanAccountFolders(s.accountFolders, s.accounts);
   s.prompts = cleanPrompts(s.prompts);
   s.agents = cleanAgents(s.agents);
