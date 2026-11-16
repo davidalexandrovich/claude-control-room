@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { movedFolder } from "../shared/folders.ts";
 import { cleanName } from "./names.ts";
 import { APP_DIR } from "./paths.ts";
 
@@ -91,6 +92,13 @@ export function shiftFolder(name: string, by: -1 | 1): Promise<void> {
   const to = at + by;
   if (at < 0 || to < 0 || to >= s.names.length) return writing;
   [s.names[at], s.names[to]] = [s.names[to], s.names[at]];
+  return save();
+}
+
+/** Moves a folder to just before another one, or to the end when `before` is null. */
+export function placeFolder(name: string, before: string | null): Promise<void> {
+  const s = load();
+  s.names = movedFolder(s.names, name, before);
   return save();
 }
 

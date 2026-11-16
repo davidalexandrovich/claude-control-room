@@ -14,7 +14,7 @@ import { agentTool } from "./agents.ts";
 import { chosenIde, openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { findTranscript, noteMode, readSessionFiles, type SessionFile } from "./monitor.ts";
-import { cleanFolder, folderNames, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
+import { cleanFolder, folderNames, placeFolder, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
 import { cleanName, saveName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
 import { CLEAR_DRAFT, remoteCommand, remoteRefusal, remoteTitle } from "./remote.ts";
@@ -311,7 +311,7 @@ export async function folderSession(monitor: Monitor, pid: number, raw: unknown)
 /** Renames, removes or moves a folder. Removing one leaves its sessions out of any folder. */
 export async function editFolder(
   monitor: Monitor,
-  b: { name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown },
+  b: { name?: unknown; rename?: unknown; remove?: unknown; shift?: unknown; before?: unknown },
 ): Promise<ActionResult> {
   const name = typeof b.name === "string" && folderNames().includes(b.name) ? b.name : null;
   if (!name) return { ok: false, message: "That folder is gone." };
@@ -328,6 +328,12 @@ export async function editFolder(
       message = `Removed “${name}”. Its sessions are still here.`;
     } else if (b.shift === -1 || b.shift === 1) {
       await shiftFolder(name, b.shift);
+      message = "Moved";
+    } else if (b.before !== undefined) {
+      // Dragged in front of another folder, or past them all.
+      const before = b.before === null ? null : typeof b.before === "string" && folderNames().includes(b.before) ? b.before : undefined;
+      if (before === undefined) return { ok: false, message: "That folder is gone." };
+      await placeFolder(name, before);
       message = "Moved";
     } else {
       return { ok: false, message: "Nothing to change" };

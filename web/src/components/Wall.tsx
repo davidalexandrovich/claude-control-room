@@ -3,6 +3,7 @@ import { AnimatePresence, LayoutGroup } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session, Settings } from "../../../shared/types.ts";
 import { useDragOrder } from "../lib/dragOrder.ts";
+import { useFolderDrag } from "../lib/folderDrag.ts";
 import { withKey } from "../lib/keys.ts";
 import { fitWall } from "../lib/layout.ts";
 import { native, openWallWindow, type DisplayInfo } from "../lib/native.ts";
@@ -181,12 +182,14 @@ export function Wall({ sessions, layout }: { sessions: Session[]; layout: Settin
   const shown = sessions.filter((s) => matchesAccount(s, account) && matchesFilter(s, filter));
   const [boxRef, box] = useBox<HTMLDivElement>();
   const dragRef = useDragOrder(shown, ".monitor", "x");
+  const folderRef = useFolderDrag(shown, "x");
   const ref = useCallback(
     (el: HTMLDivElement | null) => {
       boxRef(el);
       dragRef(el);
+      folderRef(el);
     },
-    [boxRef, dragRef],
+    [boxRef, dragRef, folderRef],
   );
 
   if (layout === "focus") return <FocusView sessions={shown} />;
@@ -208,13 +211,14 @@ export function Wall({ sessions, layout }: { sessions: Session[]; layout: Settin
         <LayoutGroup>
           <div className="wall-grid" style={style}>
             <AnimatePresence mode="popLayout">
-              {shown.map((s, i) =>
-                s.terminal ? (
-                  <TerminalTile key={s.sessionId} s={s} index={i} selected={selected === s.pid} />
+              {shown.map((s, i) => {
+                const first = s.folder !== null && shown[i - 1]?.folder !== s.folder;
+                return s.terminal ? (
+                  <TerminalTile key={s.sessionId} s={s} index={i} selected={selected === s.pid} first={first} />
                 ) : (
-                  <Monitor key={s.sessionId} s={s} index={i} selected={selected === s.pid} />
-                ),
-              )}
+                  <Monitor key={s.sessionId} s={s} index={i} selected={selected === s.pid} first={first} />
+                );
+              })}
             </AnimatePresence>
           </div>
         </LayoutGroup>

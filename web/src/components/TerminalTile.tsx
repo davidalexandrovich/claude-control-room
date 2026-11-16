@@ -5,10 +5,11 @@ import { motion } from "motion/react";
 import type { Session } from "../../../shared/types.ts";
 import { popoutSession } from "../lib/native.ts";
 import { closeName, openMenu, setState, useStore } from "../store.ts";
+import { FolderChip } from "./Folders.tsx";
 import { NameEditor, RenameButton, statusTime } from "./Monitor.tsx";
 import { IconButton, StatusOrb, useNow } from "./Primitives.tsx";
 
-export function TerminalTile({ s, index, selected }: { s: Session; index: number; selected: boolean }) {
+export function TerminalTile({ s, index, selected, first }: { s: Session; index: number; selected: boolean; first: boolean }) {
   const now = useNow();
   const renaming = useStore((st) => st.renaming === s.pid && st.drawer !== s.pid);
   const menuOn = useStore((st) => st.menu?.pid === s.pid);
@@ -48,6 +49,7 @@ export function TerminalTile({ s, index, selected }: { s: Session; index: number
       </div>
 
       <footer className="mon-foot">
+        {first && s.folder && <FolderChip name={s.folder} />}
         <StatusOrb kind={s.activity.kind} size={9} />
         <span className="foot-item">{s.activity.label}</span>
         <span className="foot-dot">· {statusTime(s, now)}</span>

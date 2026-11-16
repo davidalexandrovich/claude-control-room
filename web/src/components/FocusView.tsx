@@ -1,8 +1,9 @@
 import { SquareTerminal } from "lucide-react";
 import { motion } from "motion/react";
-import { Fragment, useEffect } from "react";
+import { Fragment, useCallback, useEffect } from "react";
 import type { Session } from "../../../shared/types.ts";
 import { useDragOrder } from "../lib/dragOrder.ts";
+import { useFolderDrag } from "../lib/folderDrag.ts";
 import { duration } from "../lib/format.ts";
 import { isShell, needsYou, openMenu, setState, useStore } from "../store.ts";
 import { FolderHead } from "./Folders.tsx";
@@ -35,13 +36,22 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
   }, [current?.pid, selected]);
   // A row dropped among another folder's rows joins that folder.
   const dragRef = useDragOrder(sessions, ".focus-row", "y", true);
+  // A header dragged up or down moves its folder.
+  const folderRef = useFolderDrag(sessions, "y");
+  const ref = useCallback(
+    (el: HTMLElement | null) => {
+      dragRef(el);
+      folderRef(el);
+    },
+    [dragRef, folderRef],
+  );
   const list = groups(sessions);
   return (
     <div className="focus-layout">
       <div className="focus-main">
         {current ? <SessionDetail s={current} variant="focus" /> : <div className="wall-empty"><h3>No session to show</h3></div>}
       </div>
-      <nav className="focus-list" aria-label="Sessions" ref={dragRef}>
+      <nav className="focus-list" aria-label="Sessions" ref={ref}>
         {list.map((g) => (
           <Fragment key={g.folder ?? ""}>
             {g.folder !== null ? <FolderHead name={g.folder} sessions={g.rows.map((r) => r.s)} /> : list.length > 1 && <div className="focus-rule" role="separator" />}

@@ -23,6 +23,7 @@ import { duration } from "../lib/format.ts";
 import { popoutSession } from "../lib/native.ts";
 import { act, api, openMenu, openSession, setState, useOpenName, useStore } from "../store.ts";
 import { withKey } from "../lib/keys.ts";
+import { FolderChip } from "./Folders.tsx";
 import { IconButton, Ring, StatusOrb, useNow } from "./Primitives.tsx";
 import { TuneChips } from "./Tuning.tsx";
 
@@ -307,7 +308,8 @@ export function statusTime(s: Session, now: number): string {
   return duration(now - s.activity.since);
 }
 
-export function Monitor({ s, index, selected }: { s: Session; index: number; selected: boolean }) {
+/** `first`: the first card of its folder, which carries the folder's chip. */
+export function Monitor({ s, index, selected, first }: { s: Session; index: number; selected: boolean; first: boolean }) {
   const now = useNow();
   const a = s.activity;
   // The plain-English "now" line tells an idle session's state best, unless the task line already shows it.
@@ -354,6 +356,7 @@ export function Monitor({ s, index, selected }: { s: Session; index: number; sel
       <p className="mon-task">{taskLine(s)}</p>
 
       <div className="mon-chips">
+        {first && s.folder && <FolderChip name={s.folder} />}
         <AccountChip s={s} />
         {s.pr && <PrChip pr={s.pr} pid={s.pid} />}
         <StoryChip s={s} />

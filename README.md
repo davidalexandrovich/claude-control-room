@@ -108,8 +108,10 @@ A session stays in its folder after a restart.
 - **In Focus:** each folder has a header over its sessions. Sessions in no folder come last. Click a header to fold it.
   A folded folder still shows a dot when one of its sessions needs you.
 - **Drag a row** among another folder's rows to move it there.
+- **Drag a header** up or down to move the whole folder.
 - **Right-click a header** to rename the folder, move it up or down, or remove it. Removing a folder keeps its sessions.
-- **On the wall:** the tiles keep each folder together.
+- **On the wall:** the tiles keep each folder together. The first tile of each folder shows its name.
+  Drag that name left or right to move the whole folder, or right-click it for the folder's menu.
 
 ### Answer without leaving
 
