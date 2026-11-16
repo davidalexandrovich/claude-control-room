@@ -416,7 +416,7 @@ In a session's right-click menu, the keys act on that session, and `1` – `4` p
 | `A` / `R` | Approve or reject |
 | `P` | Open its pull request |
 | `X` | Close the session |
-| `O` | Open its folder in your IDE |
+| `⌘O` | Open its folder in your IDE |
 | `⇧F4` | Pop it out to its own window |
 | `C` | Continue it on your phone |
 | `⌥⌘R` | Show its folder in Finder |

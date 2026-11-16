@@ -890,6 +890,8 @@ describe("shortcuts", () => {
     expect(press("F6", { shift: true })).toEqual({ id: "rename" });
     expect(press("r", { meta: true, code: "KeyR" })).toEqual({ id: "rename" });
     expect(press("ר", { meta: true, code: "KeyR" })).toEqual({ id: "rename" });
+    expect(press("o", { meta: true, code: "KeyO" })).toEqual({ id: "ide" });
+    expect(press("ם", { meta: true, code: "KeyO" })).toEqual({ id: "ide" });
     expect(press("Escape", { shift: true })).toEqual({ id: "leave" });
     expect(press("F4", { shift: true })).toEqual({ id: "popout" });
     // ⌥ changes the letter a key types, so these go by the key itself.
@@ -904,7 +906,7 @@ describe("shortcuts", () => {
       sessionKeyOf({ key: k, metaKey: !!mods.meta, ctrlKey: false, altKey: false, shiftKey: !!mods.shift } as KeyboardEvent, inMenu);
     expect(key("Enter")).toEqual({ id: "open" });
     expect(key(" ")).toEqual({ id: "details" });
-    expect(key("o")).toEqual({ id: "ide" });
+    expect(key("o")).toBeNull(); // the IDE takes ⌘O, so a stray O doesn't open it
     expect(key("c")).toEqual({ id: "remote" });
     expect(key("x")).toEqual({ id: "close" });
     expect(key("F2")).toEqual({ id: "rename" });
