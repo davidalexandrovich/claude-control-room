@@ -4,8 +4,9 @@ import { Bot, GitBranch, PictureInPicture2, SquareTerminal, X } from "lucide-rea
 import { motion } from "motion/react";
 import type { Session } from "../../../shared/types.ts";
 import { popoutSession } from "../lib/native.ts";
-import { closeName, openMenu, setState, useStore } from "../store.ts";
+import { closeName, openMenu, setState, toggleMark, useStore } from "../store.ts";
 import { FolderChip } from "./Folders.tsx";
+import { MarkKey } from "./Marks.tsx";
 import { NameEditor, RenameButton, statusTime } from "./Monitor.tsx";
 import { IconButton, StatusOrb, useNow } from "./Primitives.tsx";
 
@@ -13,6 +14,7 @@ export function TerminalTile({ s, index, selected, first }: { s: Session; index:
   const now = useNow();
   const renaming = useStore((st) => st.renaming === s.pid && st.drawer !== s.pid);
   const menuOn = useStore((st) => st.menu?.pid === s.pid);
+  const marked = useStore((st) => st.marked.includes(s.pid));
   const screen = s.terminal?.screen ?? [];
   const running = s.agent ? s.activity.kind === "working" : !!s.terminal?.command;
   return (
@@ -22,15 +24,15 @@ export function TerminalTile({ s, index, selected, first }: { s: Session; index:
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 420, damping: 38, mass: 0.8 }}
-      className={`monitor is-terminal ${s.agent ? "is-agent" : ""} ${running ? "is-running" : ""} ${selected ? "is-selected" : ""} ${menuOn ? "has-menu" : ""}`}
-      onClick={() => setState({ drawer: s.pid, selected: s.pid, typeInto: s.pid })}
+      className={`monitor is-terminal ${s.agent ? "is-agent" : ""} ${running ? "is-running" : ""} ${selected ? "is-selected" : ""} ${menuOn ? "has-menu" : ""} ${marked ? "is-marked" : ""}`}
+      onClick={(e) => (e.metaKey ? toggleMark(s.pid) : setState({ drawer: s.pid, selected: s.pid, typeInto: s.pid }))}
       onContextMenu={(e) => openMenu(e, s.pid)}
       data-pid={s.pid}
       draggable
     >
       <div className="mon-screen" aria-hidden />
       <header className="mon-head">
-        <span className="mon-key" data-tip={index < 9 ? `Press ${index + 1} or ⌘${index + 1} to select` : undefined}>{index + 1}</span>
+        <MarkKey s={s} label={String(index + 1)} tip={index < 9 ? `Press ${index + 1} or ⌘${index + 1} to select` : undefined} />
         {s.agent ? <Bot size={15} className="term-mark" aria-label={s.agent.label} /> : <SquareTerminal size={15} className="term-mark" aria-label="Terminal" />}
         {renaming ? <NameEditor s={s} className="mon-title" onDone={() => setState({ renaming: null })} /> : <h3 className="mon-title">{s.name}</h3>}
         <div className="mon-actions">

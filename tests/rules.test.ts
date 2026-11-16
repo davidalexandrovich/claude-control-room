@@ -25,6 +25,7 @@ import { applyLines, describeTool, emptyState, modelName, readTranscript, userTe
 import { verdictFor, worksIn, type WorktreeFacts } from "../server/worktrees.ts";
 import { claudeCommand, isEffort, isMode, isModel, modeName, modelAlias } from "../shared/claude.ts";
 import { movedFolder, wallDrop } from "../shared/folders.ts";
+import { closedSummary, liveMarks } from "../shared/marks.ts";
 import { isIdeId, openTarget, targetName } from "../shared/ides.ts";
 import { commandOf, KEY_GROUPS, KEYS, sessionKeyOf } from "../web/src/lib/keys.ts";
 import { fitWall, TILE_MIN_H, TILE_MIN_W } from "../web/src/lib/layout.ts";
@@ -990,6 +991,19 @@ describe("agent script", () => {
   it("closes it at once after a clean exit or Ctrl+C", () => {
     expect(run("(exit 0)").stdout).toBe("");
     expect(run("(exit 130)").stdout).toBe("");
+  });
+});
+
+describe("closing marked sessions", () => {
+  it("keeps the marks on sessions still running, in the list's order", () => {
+    expect(liveMarks([30, 10, 99], [10, 20, 30])).toEqual([10, 30]);
+    expect(liveMarks([], [10, 20])).toEqual([]);
+  });
+  it("says how many closed, and the first that did not", () => {
+    expect(closedSummary(1, [])).toBe("Closed 1 session");
+    expect(closedSummary(3, [])).toBe("Closed 3 sessions");
+    expect(closedSummary(3, ["“a”: Claude did not stop."])).toBe("Closed 2 of 3. “a”: Claude did not stop.");
+    expect(closedSummary(3, ["“a”: x", "“b”: y"])).toBe("Closed 1 of 3. “a”: x (and 1 more)");
   });
 });
 

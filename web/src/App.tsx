@@ -3,6 +3,7 @@ import { type PointerEvent as ReactPointerEvent, useEffect } from "react";
 import type { Session } from "../../shared/types.ts";
 import { CloseDialog } from "./components/CloseDialog.tsx";
 import { FolderMenu, NewFolderMenu } from "./components/Folders.tsx";
+import { CloseMarkedDialog } from "./components/Marks.tsx";
 import { SessionMenu } from "./components/SessionMenu.tsx";
 import { NewSessionDialog } from "./components/NewSessionDialog.tsx";
 import { KeysPanel } from "./components/KeysPanel.tsx";
@@ -93,7 +94,7 @@ function byPlace(visible: Session[], pid: number | null, by: 1 | -1): Session | 
 /** The shortcuts that work everywhere, a console included. */
 function command(cmd: Command, visible: Session[], st: State): void {
   // A close waits for its answer, and the new-session dialog may hold a console that still waits for one.
-  if (st.closing || st.panel === "new") return;
+  if (st.closing || st.closingMarked || st.panel === "new") return;
   if (cmd.id === "newSession") return void (!VIEW.wallOnly && setState({ panel: "new" }));
   if (cmd.id === "newTerminal") return void (!VIEW.wallOnly && openTerminal());
   if (cmd.id === "settings") return setState({ panel: st.panel === "settings" ? null : "settings" });
@@ -145,11 +146,15 @@ function useKeyboard(visible: Session[]) {
         if (st.panel === "new") return;
         // A maximized console steps back to the details first. Esc inside the console still goes to Claude Code.
         if (st.drawer && st.consoleView === "max" && !st.closing && !st.panel) return setState({ consoleView: "normal" });
-        setState(st.closing ? { closing: null } : st.panel ? { panel: null } : { drawer: null });
+        // Its own dialog takes Esc, and keeps it while the sessions close.
+        if (st.closingMarked) return;
+        // Focus shows no details panel, so there Esc goes on to the marks.
+        const details = st.drawer !== null && st.snapshot?.settings.layout !== "focus";
+        setState(st.closing ? { closing: null } : st.panel ? { panel: null } : !details && st.marked.length ? { marked: [] } : { drawer: null });
         return;
       }
       if (!document.hasFocus() || Date.now() - focusedAt < 900) return;
-      if (st.closing || st.panel) return;
+      if (st.closing || st.closingMarked || st.panel) return;
       if (e.key === "?") return setState({ panel: "keys" });
       if (/^[1-9]$/.test(e.key)) return select(visible[Number(e.key) - 1]);
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -226,6 +231,7 @@ export function App() {
   const filter = useStore((s) => s.filter);
   const drawer = useStore((s) => s.drawer);
   const closing = useStore((s) => s.closing);
+  const closingMarked = useStore((s) => s.closingMarked);
   const panel = useStore((s) => s.panel);
   const account = useStore(accountFilterOf);
   const visible = (snap?.sessions ?? []).filter((s) => matchesAccount(s, account) && matchesFilter(s, filter));
@@ -246,6 +252,7 @@ export function App() {
       </main>
       <Drawer s={snap.settings.layout === "focus" ? null : byPid(drawer)} />
       {closingSession && <CloseDialog s={closingSession} />}
+      {closingMarked && <CloseMarkedDialog />}
       {panel === "settings" && <SettingsPanel snap={snap} />}
       {panel === "worktrees" && <WorktreesPanel />}
       {panel === "new" && <NewSessionDialog snap={snap} />}
