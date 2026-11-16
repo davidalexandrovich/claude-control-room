@@ -240,8 +240,8 @@ export function SessionDetail({ s, variant }: { s: Session; variant: "drawer" | 
         </button>
       )}
       {s.story && (
-        <button type="button" className="btn btn-ghost" onClick={() => openUrl(s.story!.url, { pid: s.pid })}>
-          <SquareKanban size={15} /> Story
+        <button type="button" className="btn btn-ghost" data-tip={s.story.name} onClick={() => openUrl(s.story!.url, { pid: s.pid })}>
+          <SquareKanban size={15} /> {s.story.id}
         </button>
       )}
       {s.artifacts[0] && (
