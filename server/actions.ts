@@ -14,7 +14,7 @@ import { agentTool } from "./agents.ts";
 import { chosenIde, openInIde } from "./ide.ts";
 import type { Monitor } from "./monitor.ts";
 import { findTranscript, noteMode, readSessionFiles, type SessionFile } from "./monitor.ts";
-import { cleanFolder, folderNames, placeFolder, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
+import { addFolder, cleanFolder, folderNames, placeFolder, removeFolder, renameFolder, setFolder, shiftFolder } from "./folders.ts";
 import { cleanName, saveName } from "./names.ts";
 import { launch, run, sleep } from "./proc.ts";
 import { CLEAR_DRAFT, remoteCommand, remoteRefusal, remoteTitle } from "./remote.ts";
@@ -306,6 +306,20 @@ export async function folderSession(monitor: Monitor, pid: number, raw: unknown)
   }
   await monitor.fresh();
   return { ok: true, message: folder ? `Moved to “${folder}”` : `Taken out of “${s.folder}”` };
+}
+
+/** Makes an empty folder, to drag sessions into. */
+export async function newFolder(monitor: Monitor, raw: unknown): Promise<ActionResult> {
+  const name = cleanFolder(raw);
+  if (!name) return { ok: false, message: "Type a folder name first." };
+  if (folderNames().includes(name)) return { ok: false, message: `There is a “${name}” already.` };
+  try {
+    await addFolder(name);
+  } catch (err) {
+    return { ok: false, message: `The folder was not saved: ${(err as Error).message}` };
+  }
+  await monitor.fresh();
+  return { ok: true, message: `Made “${name}”` };
 }
 
 /** Renames, removes or moves a folder. Removing one leaves its sessions out of any folder. */

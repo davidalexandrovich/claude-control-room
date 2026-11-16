@@ -27,6 +27,7 @@ import {
   placeSession,
   folderSession,
   editFolder,
+  newFolder,
   renameSession,
   setEffort,
   setMode,
@@ -249,6 +250,8 @@ export async function startServer(opts: { port?: number; dev?: boolean; installU
         return send(res, 200, await newSession(monitor, await body<Parameters<typeof newSession>[1]>(req)));
       case "/api/folders":
         return send(res, 200, await editFolder(monitor, await body<Parameters<typeof editFolder>[1]>(req)));
+      case "/api/folders/new":
+        return send(res, 200, await newFolder(monitor, (await body<{ name?: unknown }>(req)).name));
       case "/api/terminal":
         return send(res, 200, await startTerminal(monitor, (await body<{ account?: unknown }>(req)).account));
       case "/api/open": {

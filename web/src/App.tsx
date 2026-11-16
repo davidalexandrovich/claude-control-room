@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { type PointerEvent as ReactPointerEvent, useEffect } from "react";
 import type { Session } from "../../shared/types.ts";
 import { CloseDialog } from "./components/CloseDialog.tsx";
-import { FolderMenu } from "./components/Folders.tsx";
+import { FolderMenu, NewFolderMenu } from "./components/Folders.tsx";
 import { SessionMenu } from "./components/SessionMenu.tsx";
 import { NewSessionDialog } from "./components/NewSessionDialog.tsx";
 import { KeysPanel } from "./components/KeysPanel.tsx";
@@ -253,6 +253,7 @@ export function App() {
       {panel === "jump" && <SessionJump />}
       <SessionMenu />
       <FolderMenu />
+      <NewFolderMenu />
       <Toasts />
     </div>
   );

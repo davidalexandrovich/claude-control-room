@@ -6,6 +6,7 @@ import type { Session } from "../../../shared/types.ts";
 import { api } from "../store.ts";
 
 type Side = "before" | "after";
+type Mark = { el: HTMLElement; pid: number; side: Side } | { el: HTMLElement; folder: string; side: "into" };
 
 /** The card closest to a point: by the distance to its edges, so a gap counts toward the card beside it. */
 export function nearest(cards: HTMLElement[], x: number, y: number): HTMLElement | null {
@@ -21,7 +22,8 @@ export function nearest(cards: HTMLElement[], x: number, y: number): HTMLElement
 
 /**
  * A ref for the element that holds the cards (`item` finds them in it); `axis` is how they line up. With `regroup`,
- * a card dropped among another folder's cards joins that folder: the list shows folders under headers then.
+ * a card dropped among another folder's cards, or on its header, joins that folder: the list shows folders under
+ * headers then.
  */
 export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y", regroup = false): (el: HTMLElement | null) => void {
   const list = useRef(sessions);
@@ -33,7 +35,7 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y",
     detach.current = null;
     if (!el) return;
     let dragged: number | null = null;
-    let mark: { el: HTMLElement; pid: number; side: Side } | null = null;
+    let mark: Mark | null = null;
 
     const items = () => [...el.querySelectorAll<HTMLElement>(item)];
     const pidOf = (node: HTMLElement) => Number(node.dataset.pid);
@@ -58,6 +60,17 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y",
       if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
       // Before or after the card under the pointer, by which half it is in. In a gap between cards, the nearest one
       // counts; past the last row, after the last card.
+      // On a folder's header: into that folder. One with no sessions yet has no cards to drop among.
+      const head = regroup ? (e.target as HTMLElement).closest<HTMLElement>("[data-folder-drag]") : null;
+      if (head && el.contains(head)) {
+        const folder = head.dataset.folderDrag ?? "";
+        if (list.current.find((s) => s.pid === dragged)?.folder === folder) return unmark();
+        if (mark?.el === head) return;
+        unmark();
+        mark = { el: head, folder, side: "into" };
+        head.dataset.drop = "into";
+        return;
+      }
       const all = items();
       let card = (e.target as HTMLElement).closest<HTMLElement>(item);
       if (!card || !el.contains(card)) card = nearest(all, e.clientX, e.clientY);
@@ -78,6 +91,7 @@ export function useDragOrder(sessions: Session[], item: string, axis: "x" | "y",
       const pid = dragged;
       end();
       if (!target) return;
+      if (target.side === "into") return void api(`/api/sessions/${pid}/folder`, { folder: target.folder }).catch(() => null);
       // Its new neighbours, in the list as you see it.
       const rest = list.current.filter((s) => s.pid !== pid);
       const index = rest.findIndex((s) => s.pid === target.pid);

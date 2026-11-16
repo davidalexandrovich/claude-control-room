@@ -36,6 +36,7 @@ export interface State {
   draft: SavedPrompt | null; // the saved prompt New session opens with, as ▶ in the top bar's Prompts leaves it
   folded: string[]; // the folders shut in the side list
   folderMenu: { name: string; x: number; y: number } | null; // a folder's right-click menu, where it opened
+  newFolderAt: { x: number; y: number } | null; // the side list's right-click menu, which makes a folder, where it opened
   renamingFolder: string | null; // the folder whose name is being edited, in its header
 }
 
@@ -77,6 +78,7 @@ let state: State = {
   accountFilter: stored("cr.accountFilter", ""),
   folded: stored<string[]>("cr.folded", []),
   folderMenu: null,
+  newFolderAt: null,
   renamingFolder: null,
   // The wall shows the cards as chips only. The old one-switch fold carries over as every card folded.
   ovHidden: VIEW.wallOnly ? [...CARDS] : stored<string[]>("cr.ovHidden", stored("cr.overviewCollapsed", false) ? [...CARDS] : []),
@@ -170,6 +172,11 @@ export async function editFolder(
     remember("cr.folded", folded);
   }
   return r;
+}
+
+/** Makes a folder with no sessions yet. Its header shows at once, so no toast unless it failed. */
+export function newFolder(name: string): Promise<ActionResult> {
+  return act("folder:new", "/api/folders/new", { name }, true);
 }
 
 /** Puts the session in a folder, made if it is new; null takes it out. */

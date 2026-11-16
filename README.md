@@ -103,11 +103,12 @@ put it in a folder, send it to your phone, open its PR, put it first or last, co
 
 Sort sessions into folders of your own, such as "Code reviews" or "Troubleshoot".
 Right-click a session and click a folder in its **Folder** row, or **+ New** to make one.
+Or, in Focus, right-click the empty space in the list, type a name and press `Enter`: the new folder shows, empty, to drag sessions into.
 A session stays in its folder after a restart.
 
 - **In Focus:** each folder has a header over its sessions. Sessions in no folder come last. Click a header to fold it.
   A folded folder still shows a dot when one of its sessions needs you.
-- **Drag a row** among another folder's rows to move it there.
+- **Drag a row** among another folder's rows, or onto its header, to move it there.
 - **Drag a header** up or down to move the whole folder.
 - **Right-click a header** to rename the folder, move it up or down, or remove it. Removing a folder keeps its sessions.
 - **On the wall:** the tiles keep each folder together. The first tile of each folder shows its name.
