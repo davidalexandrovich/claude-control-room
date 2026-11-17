@@ -5,6 +5,7 @@ import type { Session } from "../../../shared/types.ts";
 import { useDragOrder } from "../lib/dragOrder.ts";
 import { useFolderDrag } from "../lib/folderDrag.ts";
 import { duration } from "../lib/format.ts";
+import { dragFrom, keepSizes, setFocusListWidth } from "../lib/resize.ts";
 import { isShell, needsYou, openMenu, setState, toggleMark, useStore } from "../store.ts";
 import { FolderHead } from "./Folders.tsx";
 import { MarkKey } from "./Marks.tsx";
@@ -29,6 +30,7 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
   const marked = useStore((s) => s.marked);
   const folded = useStore((s) => s.folded);
   const folders = useStore((s) => s.snapshot?.folders) ?? [];
+  const listWidth = useStore((s) => s.focusListWidth);
   const now = useNow();
   // The pick stays on show even when the filter no longer lists it.
   const current = all.find((s) => s.pid === selected) ?? sessions.find(needsYou) ?? sessions[0] ?? null;
@@ -48,11 +50,23 @@ export function FocusView({ sessions }: { sessions: Session[] }) {
     [dragRef, folderRef],
   );
   const list = groups(sessions, folders, all);
+  // The edge between the big session and the list: the list is on the right, so dragging left widens it, until the
+  // session has its 480px and the edge its 14 (as in the CSS).
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const w0 = (e.currentTarget.nextElementSibling as HTMLElement).getBoundingClientRect().width;
+    const max = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect().width - 494;
+    dragFrom(e, "ew-resize", (dx) => setFocusListWidth(Math.min(max, w0 - dx)));
+  };
+  const resetWidth = () => {
+    setFocusListWidth(null);
+    keepSizes();
+  };
   return (
-    <div className="focus-layout">
+    <div className="focus-layout" style={listWidth ? ({ "--focus-list": `${listWidth}px` } as React.CSSProperties) : undefined}>
       <div className="focus-main">
         {current ? <SessionDetail s={current} variant="focus" /> : <div className="wall-empty"><h3>No session to show</h3></div>}
       </div>
+      <div className="focus-grip" data-tip="Drag to resize · double-click for the usual width" onPointerDown={startDrag} onDoubleClick={resetWidth} />
       <nav
         className="focus-list"
         aria-label="Sessions"

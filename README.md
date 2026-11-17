@@ -256,6 +256,7 @@ To watch just one session, pop it out to its own window and drag it to any scree
 <img src="docs/images/focus.png" alt="Focus layout: one session large on the left, the other sessions in a list on the right">
 
 **Focus** shows one session large, with the others in a list beside it, under their [folders](#folders). Press `1` to `9` to switch.
+Drag the edge between them to give the session or the list more room. Double-click that edge for the usual width.
 
 ### AI news, once a day
 

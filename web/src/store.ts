@@ -33,6 +33,7 @@ export interface State {
   consoleView: ConsoleView;
   drawerWidths: Record<string, number>; // dragged widths of the details panel, with a console and without one
   consoleHeight: number | null; // dragged height of a console in its details; null fills the room
+  focusListWidth: number | null; // dragged width of the session list in Focus; null is the usual 300px
   menu: { pid: number; x: number; y: number } | null; // a session's right-click menu, where it opened
   renaming: number | null; // pid whose name is being edited, in its details when they show, else on its tile
   draft: SavedPrompt | null; // the saved prompt New session opens with, as ▶ in the top bar's Prompts leaves it
@@ -96,6 +97,7 @@ let state: State = {
   consoleView: "normal",
   drawerWidths: stored<Record<string, number>>("cr.drawerWidths", {}),
   consoleHeight: stored<number | null>("cr.consoleHeight", null),
+  focusListWidth: stored<number | null>("cr.focusListWidth", null),
   menu: null,
   renaming: null,
   draft: null,
