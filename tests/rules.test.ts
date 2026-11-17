@@ -1023,8 +1023,9 @@ describe("the daily AI news", () => {
       ["https://example.com/6", ""],
     ]);
   });
-  it("leaves out what earlier days had", () => {
-    expect(parseNews(JSON.stringify({ items: [item(1), item(2)] }), ["https://example.com/1"])?.map((x) => x.url)).toEqual(["https://example.com/2"]);
+  it("leaves out what earlier days had, but not a page they linked", () => {
+    const seen = [{ title: "pick  1", url: "https://example.com/old" }, { title: "Older release", url: "https://example.com/2" }];
+    expect(parseNews(JSON.stringify({ items: [item(1), item(2)] }), seen)?.map((x) => x.url)).toEqual(["https://example.com/2"]);
   });
   it("gives null for a reply with no picks", () => {
     expect(parseNews("Sorry, I could not search.")).toBeNull();

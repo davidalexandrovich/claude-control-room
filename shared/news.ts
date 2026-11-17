@@ -24,8 +24,12 @@ function text(raw: unknown, max: number): string | null {
   return t && t.length <= max ? t : null;
 }
 
-/** The picks in Claude's reply: up to five, each with a title, a summary and a web link not seen before. Null: none. */
-export function parseNews(reply: string, seen: readonly string[] = []): NewsItem[] | null {
+// Case and spacing aside, so "Claude Code 2.1.325: X" and "claude code 2.1.325:  x" are the same pick.
+const same = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** The picks in Claude's reply: up to five, each with a title, a summary and a web link. Null: none.
+ *  A pick an earlier day had by its title is left out. Its link alone isn't, since a changelog keeps one link for every release. */
+export function parseNews(reply: string, seen: readonly Pick<NewsItem, "title" | "url">[] = []): NewsItem[] | null {
   const m = /\{[\s\S]*\}/.exec(reply);
   if (!m) return null;
   let raw: unknown;
@@ -43,7 +47,7 @@ export function parseNews(reply: string, seen: readonly string[] = []): NewsItem
     const summary = text(r.summary, 700);
     const url = typeof r.url === "string" ? r.url.trim() : "";
     if (!title || !summary || !/^https?:\/\/[^\s"<>]+$/i.test(url) || url.length > 600) continue;
-    if (seen.includes(url) || out.some((o) => o.url === url)) continue;
+    if (seen.some((o) => same(o.title, title)) || out.some((o) => o.url === url)) continue;
     out.push({ title, summary, url, tag: text(r.tag, 24) ?? "" });
     if (out.length === NEWS_ITEMS) break;
   }
