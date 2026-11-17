@@ -259,7 +259,7 @@ To watch just one session, pop it out to its own window and drag it to any scree
 
 ### AI news, once a day
 
-**AI news**, next to *Live* at the top, opens the day's five most useful new things for building with Claude, agents and dev tools: what changed, how to use it, and a link to its source.
+**AI news**, next to *Live* at the top, opens the day's five most useful new things for coding with Claude Code, building AI into backends, and leading a team that does: what changed, what to do about it, and a link to its source.
 Claude picks them from the web once a day, on the account you choose. It is off until you turn it on in that panel, since it uses a little of that account's usage.
 The run gets web search only: no files, no shell, no MCP servers, no hooks. A dot on the button means a newer day's picks you haven't opened.
 

@@ -1,4 +1,4 @@
-// The daily AI news: five picks for building with Claude, agents and dev tools, which Claude finds on the web once a day
+// The daily AI news: five picks for coding with Claude Code, building AI into backends and leading a team, which Claude finds on the web once a day
 // (server/news.ts). The button sits next to Live; a dot on it means a day's picks you haven't opened yet.
 import { ArrowUpRight, Newspaper, RefreshCw, X } from "lucide-react";
 import { motion } from "motion/react";
@@ -19,12 +19,12 @@ export function NewsButton({ snap }: { snap: Snapshot }) {
   const { issue, running } = snap.news;
   const fresh = !!issue && issue.date !== seen;
   const tip = issue
-    ? `${dayName(issue.date)}'s ${issue.items.length} picks for Claude, agents and dev tools`
+    ? `${dayName(issue.date)}'s ${issue.items.length} picks for Claude Code, AI backends and team leads`
     : snap.settings.news
       ? running
         ? "Reading today's AI news…"
         : "Today's AI news"
-      : "Daily AI news for Claude, agents and dev tools";
+      : "Daily AI news for Claude Code, AI backends and team leads";
   return (
     <button type="button" className={`news-btn ${fresh ? "is-fresh" : ""}`} data-tip={tip} onClick={() => setState({ panel: "news" })}>
       {running && !issue ? <Spinner /> : <Newspaper size={12} />}
@@ -73,7 +73,10 @@ export function NewsPanel({ snap }: { snap: Snapshot }) {
             <h2>
               <Newspaper size={17} /> AI news{issue ? ` · ${dayName(issue.date)}` : ""}
             </h2>
-            <p className="dialog-sub">The most useful new things for building with Claude, agents and dev tools, picked from the web once a day.</p>
+            <p className="dialog-sub">
+              The most useful new things for coding with Claude Code, building AI into backends and leading a team that does, picked from the web once a
+              day.
+            </p>
           </div>
           <button type="button" className="icon-btn" aria-label="Close" onClick={close}>
             <X size={16} />
