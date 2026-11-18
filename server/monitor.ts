@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { IdeId } from "../shared/ides.ts";
 import type { AccountRef, ChatLine, OtherAccount, Session, Snapshot, Summary } from "../shared/types.ts";
 import { currentAccount } from "./account.ts";
-import { type Home, homeDir, homes, projectsDir, sessionsDir } from "./homes.ts";
+import { accountByDir, type Home, homeDir, homes, projectsDir, sessionsDir } from "./homes.ts";
 import { deriveActivity, type StatusFile } from "./activity.ts";
 import { claimsOf, repoClaims } from "./claims.ts";
 import { publicSettings, settings } from "./config.ts";
@@ -557,7 +557,8 @@ export class Monitor {
       remoteUrl: null,
       terminal: { command, screen },
       agent: null,
-      account: null,
+      // The account it was opened on, while Settings still has it: its tab lists it.
+      account: p.account ? accountByDir(p.account) : null,
     };
   }
 }

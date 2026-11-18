@@ -243,7 +243,7 @@ describe.skipIf(!TMUX)("console on a real tmux", () => {
   it("starts a terminal in the folder, shows its screen, and closes it", async () => {
     mkdirSync(join(home, ".claude-control-room"), { recursive: true });
     const dir = mkdtempSync(join(tmpdir(), "cr-term-"));
-    const r = await hosted.startShell(dir, "/bin/sh");
+    const r = await hosted.startShell(dir, null, "/bin/sh");
     expect(r.ok).toBe(true);
     expect(hosted.isTerminalName(r.name!)).toBe(true);
     const pane = (await hosted.hostedPanes())!.find((p) => p.name === r.name)!;
@@ -259,6 +259,24 @@ describe.skipIf(!TMUX)("console on a real tmux", () => {
     expect((await hosted.hostedPanes())!.some((p) => p.name === r.name)).toBe(false);
   });
 
+  it("starts a terminal on another account: claude typed there uses its folder, and the terminal says which", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cr-term-"));
+    const account = join(home, ".claude-other");
+    const r = await hosted.startShell(dir, { label: "Other", dir: account }, "/bin/sh");
+    expect(r.ok).toBe(true);
+    expect((await hosted.hostedPanes())!.find((p) => p.name === r.name)!.account).toBe(account);
+    consoles.typeInConsole(r.name!, 'echo "cfg=[$CLAUDE_CONFIG_DIR]"\r');
+    await until(() => tmux("capture-pane", "-p", "-t", `=${r.name}:`).includes(`cfg=[${account}]`));
+    expect(await consoles.stopConsole(r.name!)).toBe(true);
+
+    // On the usual account it has none, so claude uses ~/.claude.
+    const plain = await hosted.startShell(dir, null, "/bin/sh");
+    expect((await hosted.hostedPanes())!.find((p) => p.name === plain.name)!.account).toBe("");
+    consoles.typeInConsole(plain.name!, 'echo "cfg=[$CLAUDE_CONFIG_DIR]"\r');
+    await until(() => tmux("capture-pane", "-p", "-t", `=${plain.name}:`).includes("cfg=[]"));
+    expect(await consoles.stopConsole(plain.name!)).toBe(true);
+  });
+
   it("gives a terminal your own keys and editor, not those the tmux server started with", async () => {
     // A server started from a Claude Code tool keeps its EDITOR=vi, which gives zsh vi keys: ⌃R finds no history.
     tmux("new-session", "-d", "-s", "keep", "sh", "-c", "exec cat");
@@ -266,7 +284,7 @@ describe.skipIf(!TMUX)("console on a real tmux", () => {
     try {
       tmux("set-environment", "-g", "EDITOR", "vi");
       tmux("set-environment", "-g", "GIT_EDITOR", "true");
-      const r = await hosted.startShell(home, "/bin/zsh");
+      const r = await hosted.startShell(home, null, "/bin/zsh");
       expect(r.ok).toBe(true);
       name = r.name;
       expect(tmux("show-environment", "-g")).not.toMatch(/^(EDITOR|GIT_EDITOR)=/m);
