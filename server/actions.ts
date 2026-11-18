@@ -551,7 +551,7 @@ export function openFolder(path: string): ActionResult {
 export async function startTerminal(monitor: Monitor, account?: unknown): Promise<ActionResult & { pid?: number }> {
   const folder = (typeof account === "string" && accountFolder(account)) || folderSetting(settings().terminalFolder);
   if (!folder) return { ok: false, message: `That folder is gone: ${settings().terminalFolder}. Pick another in Settings.` };
-  const r = await startShell(folder);
+  const r = await startShell(folder, typeof account === "string" ? accountByDir(account) : null);
   if (!r.ok || !r.name) return r;
   await monitor.fresh();
   const s = monitor.snapshot?.sessions.find((x) => x.sessionId === r.name);

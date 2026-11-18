@@ -76,21 +76,23 @@ export interface HostedPane {
   cwd: string; // the folder that program is in now
   command: string; // the program in front, such as "zsh" or "npm"
   agent: string; // the coding agent it was started with, such as "codex"; "" for the rest
+  account: string; // a terminal's account: the config folder Claude Code typed there uses; "" for the usual one
   prompt: string; // the first message it was started with, if any
 }
 
 /** The sessions that run on Control Room's tmux server now, one pane each; null when tmux could not say. */
 export async function hostedPanes(): Promise<HostedPane[] | null> {
   if (!tmuxReady()) return [];
-  const format = "#{session_name}\t#{session_created}\t#{pane_pid}\t#{pane_current_path}\t#{pane_current_command}\t#{@cr_agent}\t#{@cr_prompt}";
+  // The prompt is last: it may hold tabs of its own.
+  const format = "#{session_name}\t#{session_created}\t#{pane_pid}\t#{pane_current_path}\t#{pane_current_command}\t#{@cr_agent}\t#{@cr_account}\t#{@cr_prompt}";
   const out = await tmux(["list-panes", "-a", "-F", format], 2_000);
   // No server means nothing runs here; any other failure says nothing either way.
   if (!out.ok) return /no server running|error connecting/i.test(out.stderr) ? [] : null;
   const panes = new Map<string, HostedPane>();
   for (const line of out.stdout.split("\n")) {
-    const [name, created, pid, cwd, command, agent, ...prompt] = line.split("\t");
+    const [name, created, pid, cwd, command, agent, account, ...prompt] = line.split("\t");
     if (!isHostedName(name) || panes.has(name)) continue;
-    panes.set(name, { name, createdAt: Number(created) * 1000, pid: Number(pid), cwd: cwd ?? "", command: command ?? "", agent: agent ?? "", prompt: prompt.join("\t") });
+    panes.set(name, { name, createdAt: Number(created) * 1000, pid: Number(pid), cwd: cwd ?? "", command: command ?? "", agent: agent ?? "", account: account ?? "", prompt: prompt.join("\t") });
   }
   return [...panes.values()];
 }
@@ -182,13 +184,18 @@ export function shellArgs(shell: string): string[] {
   return basename(shell) === "zsh" ? [shell, "-l", "-o", "SHARE_HISTORY"] : [shell, "-l"];
 }
 
-/** Starts a terminal: your shell in a new tmux session, the way a Terminal window starts it. */
-export async function startShell(cwd: string, shell = process.env.SHELL || "/bin/zsh"): Promise<ActionResult & { name?: string }> {
+/**
+ * Starts a terminal: your shell in a new tmux session, the way a Terminal window starts it. On another account, the
+ * shell gets its CLAUDE_CONFIG_DIR, so `claude` typed there runs on that account, and the terminal lists under it.
+ */
+export async function startShell(cwd: string, account: AccountRef | null = null, shell = process.env.SHELL || "/bin/zsh"): Promise<ActionResult & { name?: string }> {
   if (!tmuxReady()) return { ok: false, message: "Control Room needs tmux for this. Install it: brew install tmux" };
   await writeConf();
   const name = `crt-${randomBytes(4).toString("hex")}`;
-  const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", ...shellArgs(shell)], 10_000);
+  const env = account ? ["-e", `CLAUDE_CONFIG_DIR=${account.dir}`] : [];
+  const started = await tmux(["-f", CONF, "-u", "new-session", "-d", "-s", name, "-c", cwd, "-x", "120", "-y", "36", ...env, ...shellArgs(shell)], 10_000);
   if (!started.ok) return { ok: false, message: (started.stderr || started.stdout).trim() || "tmux did not start the terminal." };
+  if (account) await tmux(["set-option", "-t", name, "@cr_account", account.dir], 2_000);
   return { ok: true, message: "Started", name };
 }
 
